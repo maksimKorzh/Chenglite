@@ -11,12 +11,6 @@
 #define castleMoves "r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 1 "
 
 // Definitions
-char *unicodePieces[15] = {
-	".", "\u2659", "\u2658", "\u2657", "\u2656", "\u2655", "\u2654", "-",
-	" ", "\u265F", "\u265E", "\u265D", "\u265C", "\u265B", "\u265A"
-};
-
-
 enum side { w, b };
 enum pieces { emSq, wP, wN,	wB,	wR,	wQ,	wK,	offBoard = 8, bP, bN, bB, bR, bQ, bK };
 enum castling { K = 1, Q = 2, k = 4, q = 8 };
@@ -32,16 +26,53 @@ enum squares {
 	a8 = 112, b8, c8, d8, e8, f8, g8, h8, noSq = -99
 };
 
-typedef struct { int moves[256]; int count; } MOVELIST;
+char *unicodePieces[15] = {
+	".", "\u2659", "\u2658", "\u2657", "\u2656", "\u2655", "\u2654", "-",
+	" ", "\u265F", "\u265E", "\u265D", "\u265C", "\u265B", "\u265A"
+};
+
+int pieceChars[67] = {
+	[32] = wP, [30] = wN, [18] = wB, [34] = wR, [33] = wQ, [27] = wK,
+	[64] = bP, [62] = bN, [50] = bB, [66] = bR, [65] = bQ, [59] = bK
+};
+
+const int pawnAttacks[4] = {15, 17, -15, -17};
+const int knightAttacks[8] = {31, 33, 14, 18, -31, -33, -14, -18};
+const int kingAttacks[8] = {1, 15, 16, 17, -1, -15, -16, -17};
+const int bishopAttacks[4] = {15, 17, -15, -17};
+const int rookAttacks[4] = {1, 16, -1, -16};
+
+
+typedef struct { int move; int score; } MOVE;
+typedef struct { MOVE moves[256]; int count; } MOVELIST;
 typedef struct { int position[128]; int side; int enPassant; int castle; } CHESSBOARD;
+
+
+/********************************************
+ *************** Misc macros ****************
+ ********************************************/
 
 // 0x88 math
 #define IsOnBoard(sq) (!(sq & 0x88))
 #define fr2sq(file, rank) (rank * 16 - file)
+#define parse2sq(file, rank) ((rank - 1) * 16 + file)
 #define GetFile(sq) (sq & 7)
 #define GetRank(sq) (sq >> 4)
+
+// Convertions
 #define GetFileChar(sq) (GetFile(sq) + 'a')
 #define GetRankChar(sq) (GetRank(sq) + '1')
+#define GetUnicodePiece(piece) unicodePieces[piece]
+#define Char2Piece(char) pieceChars[char - '0']
+	
+// Char type
+#define isDigit(char) (char >= '0' && char <= '9')
+#define isPieceChar(piece) ((*fen >= 'a' && *fen <= 'z') || ((*fen >= 'A' && *fen <= 'Z')))
+
+
+/********************************************
+ ************** Board macros ****************
+ ********************************************/
 
 // Quick board access
 #define pos(sq)		board->position[sq]
@@ -61,10 +92,6 @@ typedef struct { int position[128]; int side; int enPassant; int castle; } CHESS
 	if(sq == -99) printf("no");\
 	else printf("%c%c", GetFileChar(sq), GetRankChar(sq));
 
-
-
-
-
 // Init board
 #define ResetPosition(board) \
 	LoopBoard { IsOnBoard(sq) ? SetSq(sq, emSq) : SetSq(sq, offBoard); }
@@ -75,14 +102,11 @@ typedef struct { int position[128]; int side; int enPassant; int castle; } CHESS
 #define ResetBoard(board) \
 	ResetPosition(board); ResetStats(board)
 
-// Parse FEN
-
-
 // Print board
 #define PrintPosition(board) \
 	printf("\n"); \
 	RankLoop { printf("  %d", rank); \
-	FileLoop { printf("  %s", unicodePieces[GetSq(fr2sq(file, rank))]); }\
+	FileLoop { printf("  %s", GetUnicodePiece(GetSq(fr2sq(file, rank)))); }\
 	printf("\n"); }
 	
 #define PrintStats(board) \
@@ -91,24 +115,210 @@ typedef struct { int position[128]; int side; int enPassant; int castle; } CHESS
 	printf("     EnPassant:          "); \
 	PrintSquare(enPassant); \
 	printf("\n"); \
-	printf("     Castling:         %c%c%c%c\n", castle & K ? 'K' : '-',  \
-												castle & Q ? 'Q' : '-',  \
-												castle & k ? 'k' : '-',  \
-												castle & q ? 'q' : '-'); \
+	printf("     Castling:         %c%c%c%c\n", \
+		castle & K ? 'K' : '-',  \
+		castle & Q ? 'Q' : '-',  \
+		castle & k ? 'k' : '-',  \
+		castle & q ? 'q' : '-'); \
 	printf("\n\n");
 	
 #define PrintBoard(board) PrintPosition(board); PrintStats(board)
 
 
+/********************************************
+ *************** Move macros ****************
+ ********************************************/
+ 
+ // Move format
+ 
+ /*
+ 
+ 	0000 0000 0000 0000 0111 1111		source square		0x7f
+ 	0000 0000 0011 1111 1000 0000		target square		0x3f80
+ 	0000 0011 1100 0000 0000 0000		promoted piece		0x3c000
+ 	0000 0100 0000 0000 0000 0000		capture flag		0x40000
+ 	0000 1000 0000 0000 0000 0000		pawn start flag		0x80000	
+ 	0001 0000 0000 0000 0000 0000		en passant flag		0x100000
+ 	0010 0000 0000 0000 0000 0000		castling flag		0x200000
+ 
+ */
+
+
+/********************************************
+ ************* Move generator ***************
+ ********************************************/
+
+static int IsSquareAttacked(CHESSBOARD *board, int sq, int attSide)
+{
+	// by pawns
+	if(!attSide)
+	{
+		if(!((sq - 15) & 0x88) && (board->position[sq - 15] == wP))
+			return 1;
+			
+		if(!((sq - 17) & 0x88) && (board->position[sq - 17] == wP))
+			return 1;
+	}
+	
+	else
+	{
+		if(!((sq + 15) & 0x88) && (board->position[sq + 15] == bP))
+			return 1;
+			
+		if(!((sq + 17) & 0x88) && (board->position[sq + 17] == bP))
+			return 1;
+	}
+
+	// by knights
+	for(int i = 0; i < 8; ++i)
+	{
+		int dir = sq + knightAttacks[i];
+		int delta = board->position[dir];
+		
+		if(!(dir & 0x88))
+		{
+			if(side ? delta == bN : delta == wN)
+				return 1;
+		}
+	}
+	
+	
+	// by bishops and queens
+	for(int i = 0; i < 4; ++i)
+	{
+		int dir = sq + bishopAttacks[i];
+		
+		while(!(dir & 0x88))
+		{
+			int delta = board->position[dir];
+			
+			if(side ? (delta == bB) || (delta == bQ) : (delta == wB) || (delta == wQ))
+				return 1;
+			
+			else if(delta != 0)
+				break;
+			
+			dir += bishopAttacks[i];
+		}
+	}
+	
+	
+	// by rooks and queens
+	for(int i = 0; i < 4; ++i)
+	{
+		int dir = sq + rookAttacks[i];
+		
+		while(!(dir & 0x88))
+		{
+			int delta = board->position[dir];
+			
+			if(side ? (delta == bR) || (delta == bQ) : (delta == wR) || (delta == wQ))
+				return 1;
+			
+			else if(delta != 0)
+				break;
+			
+			dir += rookAttacks[i];
+		}
+	}
+	
+	
+	// by kings
+	for(int i = 0; i < 8; ++i)
+	{
+		int dir = sq + kingAttacks[i];
+		int delta = board->position[dir];
+		
+		if(!(dir & 0x88))
+		{
+			if(side ? delta == bK : delta == wK)
+				return 1;
+		}
+	}
+
+	return 0;
+}
+
+/********************************************
+ ******************* UCI ********************
+ ********************************************/
+
+void ParseFen(CHESSBOARD *board, char *fen)
+{
+	ResetBoard(board);
+	
+	RankLoop
+	{
+		FileLoop
+		{
+			int sq = fr2sq(file, rank);
+			
+			// parse position
+			if(IsOnBoard(sq))
+			{
+				if(isPieceChar(*fen))
+				{
+					SetSq(sq, Char2Piece(*fen));
+					*fen++;
+				}
+				
+				if(isDigit(*fen))
+				{
+					int count = *fen - '0';
+				
+					if(!GetSq(sq))
+						file++;
+					
+					file -= count;
+					*fen++;
+				}
+			
+				if(*fen == '/')
+				{
+					*fen++;
+					file--;
+				}
+			}
+		}
+	}
+	
+	*fen++;
+	
+	// parse stats
+	side = (*fen == 'w') ? w : b; fen += 2;
+	
+	while(*fen != ' ')
+	{
+		switch(*fen)
+		{
+			case 'K': castle |= K; break;
+			case 'Q': castle |= Q; break;
+			case 'k': castle |= k; break;
+			case 'q': castle |= q; break;
+			
+			case '-': castle = 0; } fen++;
+	}
+	
+	fen++;
+	
+	if(*fen != '-')
+	{
+		int file = fen[0] - 'a';
+		int rank = fen[1] - '0';
+		enPassant = parse2sq(file, rank);
+	}
+}
+
+
+/********************************************
+ **************** Chenglite *****************
+ ********************************************/
+
 int main()
 {
 	CHESSBOARD board[1];
-	ResetBoard(board);
 	
-	SetSq(e1, bK);
-	SetSq(e4, wP);
-	castle = 15;
-	enPassant = d3;
+	ParseFen(board, initPos);
 	PrintBoard(board);
 	
 	
