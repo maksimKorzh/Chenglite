@@ -62,7 +62,7 @@ const int castling[128] =
 
 typedef struct { int move; int score; } MOVE;
 typedef struct { MOVE moves[256]; int moveCount; } MOVELIST;
-typedef struct { int position[128]; int side; int enPassant; int castle; int kingSq[2]} CHESSBOARD;
+typedef struct { int position[128]; int side; int enPassant; int castle; int kingSq[2]; } CHESSBOARD;
 
 
 /********************************************
@@ -572,8 +572,6 @@ void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 			// kings
 			if(side ? board->position[fromSq] == bK : board->position[fromSq] == wK)
 			{
-				side ? kingSq(b) = sq : kingSq(w) = sq;
-				
 				for(int i = 0; i < 8; ++i)
 				{
 					int dir = sq + kingAttacks[i];
@@ -605,18 +603,18 @@ void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 int InCheck(CHESSBOARD *board, int sideToMove)
 {
 	int kingSquare = noSq;
-	side ? kingSquare = kingSq(b) : kingSquare = kingSq(w); 
+	sideToMove ? (kingSquare = kingSq(b)) : (kingSquare = kingSq(w)); 
 
 	/*for(int sq = 0; sq < 128; ++sq)
 	{
 		if(sideToMove ? board->position[sq] == bK : board->position[sq] == wK)
 		{
-			kingSq = sq;
+			kingSquare = sq;
 			break;
 		}
 	}*/
 	
-	return IsSquareAttacked(board, kingSq, sideToMove ^ 1);
+	return IsSquareAttacked(board, kingSquare, sideToMove ^ 1);
 } 
 
 int MakeMove(CHESSBOARD *board, int move)
@@ -689,6 +687,13 @@ int MakeMove(CHESSBOARD *board, int move)
 	// update castling permission
 	castle &= castling[fromSq];
 	castle &= castling[toSq];
+	
+	// update kingSq
+	if(GetSq(GetMoveTarget(move)) == wK || GetSq(GetMoveTarget(move)) == bK)
+	{
+		kingSq(side) = GetMoveTarget(move);
+		//PrintSquare(kingSq(side));	
+	}
 	
 	// change side
 	side ^= 1;
@@ -896,6 +901,12 @@ void ParseFen(CHESSBOARD *board, char *fen)
 			{
 				if(isPieceChar(*fen))
 				{
+					if(*fen == 'K')
+						kingSq(w) = sq;
+						
+					else if(*fen == 'k')
+						kingSq(b) = sq;	
+					
 					SetSq(sq, Char2Piece(*fen));
 					*fen++;
 				}
@@ -956,9 +967,9 @@ int main()
 {
 	CHESSBOARD board[1];
 	
-	ParseFen(board, trickyPos);
+	ParseFen(board, initPos);
 	
-	PerftTest(board, 5);
+	PerftTest(board, 6);
 	
 		
 	return 0;
