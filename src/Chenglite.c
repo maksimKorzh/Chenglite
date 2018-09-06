@@ -301,7 +301,7 @@ static void AddMove(MOVELIST *list, int move)
 	list->moveCount++;
 }
 
-void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
+static void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 {	
 	list->moveCount = 0;
 	
@@ -600,7 +600,7 @@ void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 
 #define TakeBack(board, boardStored) board[0] = boardStored[0];
 
-int InCheck(CHESSBOARD *board, int sideToMove)
+static int InCheck(CHESSBOARD *board, int sideToMove)
 {
 	int kingSquare = noSq;
 	sideToMove ? (kingSquare = kingSq(b)) : (kingSquare = kingSq(w)); 
@@ -617,7 +617,7 @@ int InCheck(CHESSBOARD *board, int sideToMove)
 	return IsSquareAttacked(board, kingSquare, sideToMove ^ 1);
 } 
 
-int MakeMove(CHESSBOARD *board, int move)
+static int MakeMove(CHESSBOARD *board, int move)
 {
 	CHESSBOARD boardStored[1];
 	boardStored[0] = board[0];
@@ -723,7 +723,7 @@ int GetTimeMs()
 	return t.tv_sec*1000 + t.tv_usec/1000;
 }
 
-void Perft(CHESSBOARD *board, int depth)
+static void Perft(CHESSBOARD *board, int depth)
 {
 	if(depth == 0)
 	{
@@ -967,9 +967,9 @@ int main()
 {
 	CHESSBOARD board[1];
 	
-	ParseFen(board, initPos);
+	ParseFen(board, trickyPos);
 	
-	PerftTest(board, 6);
+	PerftTest(board, 4);
 	
 		
 	return 0;
