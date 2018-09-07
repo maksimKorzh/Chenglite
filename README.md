@@ -4,13 +4,13 @@ Self learner's UCI chess engine for linux
 
 # Features
 
-		- 0x88 board representation;
-		- move generation via calculations
-		- copy-make make move approach
-		- material and piece placement evaluation;
-		- nega max brute force search algorithm;
-		- fixed depth quiescence search;
-		- UCI protocol with depth search only;
+	- 0x88 board representation;
+	- move generation via calculations
+	- copy-make make move approach
+	- material and piece placement evaluation;
+	- nega max brute force search algorithm;
+	- fixed depth quiescence search;
+	- UCI protocol with depth search only;
 
 
 # About
@@ -31,7 +31,7 @@ Self learner's UCI chess engine for linux
 	beginners and hobby programmers dreaming to write their own
 	bug free chess programs. The problem with my previous very
 	first successful attempt to write a chess engine - Chengine -
-	was that I couldn't make myself to keep maintaining it due
+	was that I couldn't make myself keep maintaining it any more due
 	to how the code was orginized. Now when all the code has been
 	cleaned up and slightly encapsulated via macros I feel the
 	great desire to keep the developing going on and on. At first
@@ -141,7 +141,7 @@ Self learner's UCI chess engine for linux
 	0} Ka5 {(b6a5) -76.50/6 0} 53. Bc7# {+M500/3 0} 1-0
 
 	
-# Chess engine development philosophy
+# My chess engine development philosophy
 	
 	- try each time to do the same thing you've done before,
 	  but in less code
@@ -160,18 +160,24 @@ Self learner's UCI chess engine for linux
 	  rather than high speed coding skills
 	  
 	- enjoy the process, this is the most principle thing to
-	  consider.
+	  consider
+
+# Time spent writing Chenglite
+
+	6 working days!
 
 
 # How to compile
 
 	Compile it with GCC via "gcc -Ofast Chenglite -o Chenglite" to get
-	the most performance. 
-	- cd into src folder
-	- type "make" and that's it
+	the most performance. Or use the Makefile.
 	
-	the output file would be "chengine"
-	with no extension
+	On linux:
+		- git clone https://github.com/maksimKorzh/Chenglite.git 
+		- cd into src folder
+		- type "make"
+		
+	The output file would be "Chenglite" with no extension. Enjoy!
 	
 	
 # GUI
@@ -198,4 +204,4 @@ Self learner's UCI chess engine for linux
 			
 			
 # Feedback
-	I appriciate any feedbacks at freesoft.for.people@gmail.com
+	Any feedbacks are appriciated at freesoft.for.people@gmail.com
