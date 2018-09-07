@@ -1,8 +1,8 @@
 # Chenglite
-# Chengine
-Beginner's UCI chess engine for linux
 
-	Features:
+Self learner's UCI chess engine for linux
+
+# Features
 
 		- 0x88 board representation;
 		- move generation via calculations
@@ -11,15 +11,19 @@ Beginner's UCI chess engine for linux
 		- nega max brute force search algorithm;
 		- fixed depth quiescence search;
 		- UCI protocol with depth search only;
-		
-	Chenglite is the successor of Chengine(my very first engine).
+
+
+# About
+
+	Chenglite is the successor of Chengine - my very first chess
+	engine available at https://github.com/maksimKorzh/chengine.
+	
 	The code has been heavily rewritten. Many functions turned
-	into macros. I got rid of seperate file to improve the performance
-	and make most functions declared static as well as inline
-	The search has been improved a lot by adding a quiescence search
-	to reduce the horizon effect and stop engine giving pieces.
-	
-	
+	into macros. I got rid of seperate file to improve the 
+	performance and make most functions declared static as well
+	as inline. The game performance has been improved a lot by
+	adding a quiescence search to reduce the horizon effect and
+	stop engine giving pieces.	
 
 # Intents and purposes
 
@@ -36,6 +40,7 @@ Beginner's UCI chess engine for linux
 	but diving straight into the developing process made me understand
 	the true reason why am I doing this - the idea is very simple -
 	trying to get the most out of the given design.
+	
 	
 # Achievements
 	
@@ -157,6 +162,7 @@ Beginner's UCI chess engine for linux
 	- enjoy the process, this is the most principle thing to
 	  consider.
 
+
 # How to compile
 
 	Compile it with GCC via "gcc -Ofast Chenglite -o Chenglite" to get
@@ -167,9 +173,11 @@ Beginner's UCI chess engine for linux
 	the output file would be "chengine"
 	with no extension
 	
+	
 # GUI
 
 	Tested with Arena for linux
+	
 	
 # Credits
 
@@ -187,6 +195,7 @@ Beginner's UCI chess engine for linux
 			
 		-   Oscar Toledo for providing the same class engine to play with
 		    http://www.nanochess.org/chess3.html
+			
 			
 # Feedback
 	I appriciate any feedbacks at freesoft.for.people@gmail.com
