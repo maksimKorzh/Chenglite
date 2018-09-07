@@ -149,8 +149,8 @@ Self learner's UCI chess engine for linux
 	- try to get the best performance 
 	  out of a given algorithms
 	  
-	- don't add new features until sure you got everything out
-	  of the previously added
+	- don't add new features until being sure you've got everything out
+	  of the previously added ones
 	  
 	- don't try to write the strongest chess engine in the world,
 	  remember that Stockfish and Leela chess has been developed
@@ -161,10 +161,6 @@ Self learner's UCI chess engine for linux
 	  
 	- enjoy the process, this is the most principle thing to
 	  consider
-
-# Time spent writing Chenglite
-
-	6 working days!
 
 
 # How to compile
@@ -182,7 +178,13 @@ Self learner's UCI chess engine for linux
 	
 # GUI
 
-	Tested with Arena for linux
+	Tested with Arena for linux.
+	
+	Use fixed depth search to determine playing strength
+	On any other but fixed depth search mode Chenglite
+	will play with fixed depth search of 4 plies with
+	fixed 4 plies quiescence search, which takes the
+	engine quite a lot of time to make a move.
 	
 	
 # Credits
