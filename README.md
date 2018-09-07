@@ -19,7 +19,7 @@ Self learner's UCI chess engine for linux
 	engine available at https://github.com/maksimKorzh/chengine.
 	
 	The code has been heavily rewritten. Many functions turned
-	into macros. I got rid of seperate file to improve the 
+	into macros. I got rid of seperate files to improve the 
 	performance and make most functions declared static as well
 	as inline. The game performance has been improved a lot by
 	adding a quiescence search to reduce the horizon effect and
