@@ -6,9 +6,9 @@
 // Positions
 #define  initPos "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 "
 #define  trickyPos "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 " // 48 possible moves
-#define whitePawnMoves "rnbqkb1r/pp1p1pPp/8/2p1pP2/1P1P4/3P3P/P1P1P3/RNBQKBNR w KQkq e6 0 1" // 26 possible moves
-#define blackPawnMoves "rnbqkbnr/p1p1p3/3p3p/1p1p4/2P1Pp2/8/PP1P1PpP/RNBQKB1R b KQkq e3 0 1" // 26 possible moves
-#define castleMoves "r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 1 "
+#define  whitePawnMoves "rnbqkb1r/pp1p1pPp/8/2p1pP2/1P1P4/3P3P/P1P1P3/RNBQKBNR w KQkq e6 0 1" // 26 possible moves
+#define  blackPawnMoves "rnbqkbnr/p1p1p3/3p3p/1p1p4/2P1Pp2/8/PP1P1PpP/RNBQKB1R b KQkq e3 0 1" // 26 possible moves
+#define  castleMoves "r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 1 "
 
 // Definitions
 enum side { w, b };
@@ -75,6 +75,8 @@ typedef struct { int position[128]; int side; int enPassant; int castle; int kin
 #define parse2sq(file, rank) ((rank - 1) * 16 + file)
 #define GetFile(sq) (sq & 7)
 #define GetRank(sq) (sq >> 4)
+#define rank_7 (fromSq >= a7 && fromSq <= h7)
+#define rank_2 (fromSq >= a2 && fromSq <= h2)
 
 // Convertions
 #define GetFileChar(sq) (GetFile(sq) + 'a')
@@ -206,21 +208,21 @@ typedef struct { int position[128]; int side; int enPassant; int castle; int kin
 static int IsSquareAttacked(CHESSBOARD *board, int sq, int attSide)
 {
 	// by pawns
-	if(attSide == w)
+	if(!attSide)
 	{
-		if(!((sq - 15) & 0x88) && (board->position[sq - 15] == wP))
+		if(!((sq - 15) & 0x88) && (GetSq(sq - 15) == wP))
 			return 1;
 			
-		if(!((sq - 17) & 0x88) && (board->position[sq - 17] == wP))
+		if(!((sq - 17) & 0x88) && (GetSq(sq - 17) == wP))
 			return 1;
 	}
 	
 	else
 	{
-		if(!((sq + 15) & 0x88) && (board->position[sq + 15] == bP))
+		if(!((sq + 15) & 0x88) && (GetSq(sq + 15) == bP))
 			return 1;
 			
-		if(!((sq + 17) & 0x88) && (board->position[sq + 17] == bP))
+		if(!((sq + 17) & 0x88) && (GetSq(sq + 17) == bP))
 			return 1;
 	}
 
@@ -228,7 +230,7 @@ static int IsSquareAttacked(CHESSBOARD *board, int sq, int attSide)
 	for(int i = 0; i < 8; ++i)
 	{
 		int dir = sq + knightAttacks[i];
-		int delta = board->position[dir];
+		int delta = GetSq(dir);
 		
 		if(!(dir & 0x88))
 		{
@@ -245,7 +247,7 @@ static int IsSquareAttacked(CHESSBOARD *board, int sq, int attSide)
 		
 		while(!(dir & 0x88))
 		{
-			int delta = board->position[dir];
+			int delta = GetSq(dir);
 			
 			if(attSide ? (delta == bB) || (delta == bQ) : (delta == wB) || (delta == wQ))
 				return 1;
@@ -265,7 +267,7 @@ static int IsSquareAttacked(CHESSBOARD *board, int sq, int attSide)
 		
 		while(!(dir & 0x88))
 		{
-			int delta = board->position[dir];
+			int delta = GetSq(dir);
 			
 			if(attSide ? (delta == bR) || (delta == bQ) : (delta == wR) || (delta == wQ))
 				return 1;
@@ -282,7 +284,7 @@ static int IsSquareAttacked(CHESSBOARD *board, int sq, int attSide)
 	for(int i = 0; i < 8; ++i)
 	{
 		int dir = sq + kingAttacks[i];
-		int delta = board->position[dir];
+		int delta = GetSq(dir);
 		
 		if(!(dir & 0x88))
 		{
@@ -294,31 +296,35 @@ static int IsSquareAttacked(CHESSBOARD *board, int sq, int attSide)
 	return 0;
 }
 
-static void AddMove(MOVELIST *list, int move)
+static inline void AddMove(MOVELIST *list, int move)
 {
 	list->moves[list->moveCount].move = move;
 	list->moves[list->moveCount].score = 0;
 	list->moveCount++;
 }
 
-static void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
+static inline void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 {	
 	list->moveCount = 0;
 	
-	for(int sq = 0; sq < 128; ++sq)
-	{
+	LoopBoard
+	{	
 		if(!(sq & 0x88))
 		{
+			// skip empty squares
+			if(!GetSq(sq))
+				continue;
+				
 			int fromSq = sq;
 			
-			if(side == w)
+			if(!side)
 			{	
-				if(board->position[fromSq] == wP)
+				if(GetSq(fromSq) == wP)
 				{
 					// pawn quiet move
-					if(!((fromSq + 16) & 0x88) && board->position[fromSq + 16] == emSq)
+					if(!((fromSq + 16) & 0x88) && !GetSq(fromSq + 16))
 					{
-						if((fromSq >= a7 && fromSq <= h7) && board->position[fromSq + 16] == emSq)
+						if(rank_7 && !GetSq(fromSq + 16))
 						{
 							AddMove(list, SetMove(fromSq, fromSq + 16, wN, 0, 0, 0, 0));
 							AddMove(list, SetMove(fromSq, fromSq + 16, wB, 0, 0, 0, 0));
@@ -330,10 +336,9 @@ static void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 						{
 							AddMove(list, SetMove(fromSq, fromSq + 16, 0, 0, 0, 0, 0));
 					
-							if((fromSq >= a2 && fromSq <= h2) && board->position[fromSq + 32] == emSq)
-							{
+							if(rank_2 && !GetSq(fromSq + 32))
 								AddMove(list, SetMove(fromSq, fromSq + 32, 0, 0, 1, 0, 0));
-							}
+							
 						}
 					}
 				
@@ -348,16 +353,13 @@ static void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 							if(enPassant != noSq)
 							{
 								if(dir == enPassant)
-								{
-									//assert(enPassant > dir);
 									AddMove(list, SetMove(fromSq, dir, 0, 1, 0, 1, 0));
-								}
 							}
 						}
 					
 						if((pawnAttacks[i] > 0) && !(dir & 0x88) && isBlackPiece(dir))
 						{
-							if(fromSq >= a7 && fromSq <= h7)
+							if(rank_7)
 							{
 								AddMove(list, SetMove(fromSq, dir, wN, 1, 0, 0, 0));
 								AddMove(list, SetMove(fromSq, dir, wB, 1, 0, 0, 0));
@@ -375,11 +377,11 @@ static void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 				}
 			
 				// castling
-				if(board->position[fromSq] == wK)
+				if(GetSq(fromSq) == wK)
 				{
 					if(castle & K)
 					{
-						if(board->position[f1] == emSq && board->position[g1] == emSq)
+						if(!GetSq(f1) && !GetSq(g1))
 						{
 							if(!IsSquareAttacked(board, e1, b) && !IsSquareAttacked(board, f1, b))
 								AddMove(list, SetMove(e1, g1, 0, 0, 0, 0, 1));
@@ -388,7 +390,7 @@ static void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 					
 					if(castle & Q)
 					{
-						if(board->position[d1] == emSq && board->position[c1] == emSq && board->position[b1] == emSq)
+						if(!GetSq(d1) && !GetSq(c1) && !GetSq(b1))
 						{
 							if(!IsSquareAttacked(board, e1, b) && !IsSquareAttacked(board, d1, b))
 								AddMove(list, SetMove(e1, c1, 0, 0, 0, 0, 1));
@@ -399,12 +401,12 @@ static void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 			
 			else
 			{	
-				if(board->position[fromSq] == bP)
+				if(GetSq(fromSq) == bP)
 				{
 					// pawn quiet move
-					if(!((fromSq - 16) & 0x88) && board->position[fromSq - 16] == emSq)
+					if(!((fromSq - 16) & 0x88) && !GetSq(fromSq - 16))
 					{
-						if((fromSq >= a2 && fromSq <= h2) && board->position[fromSq - 16] == emSq)
+						if(rank_2 && !GetSq(fromSq - 16))
 						{
 							AddMove(list, SetMove(fromSq, fromSq - 16, bN, 0, 0, 0, 0));
 							AddMove(list, SetMove(fromSq, fromSq - 16, bB, 0, 0, 0, 0));
@@ -416,10 +418,8 @@ static void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 						{
 							AddMove(list, SetMove(fromSq, fromSq - 16, 0, 0, 0, 0, 0));
 					
-							if((fromSq >= a7 && fromSq <= h7) && board->position[fromSq - 32] == emSq)
-							{
+							if(rank_7 && !GetSq(fromSq - 32))
 								AddMove(list, SetMove(fromSq, fromSq - 32, 0, 0, 1, 0, 0));
-							}
 						}
 					}
 				
@@ -440,7 +440,7 @@ static void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 					
 						if((pawnAttacks[i] < 0) && !(dir & 0x88) && isWhitePiece(dir))
 						{
-							if(fromSq >= a2 && fromSq <= h2)
+							if(rank_2)
 							{
 								AddMove(list, SetMove(fromSq, dir, bN, 1, 0, 0, 0));
 								AddMove(list, SetMove(fromSq, dir, bB, 1, 0, 0, 0));
@@ -458,11 +458,11 @@ static void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 				}
 				
 				// castling
-				if(board->position[fromSq] == bK)
+				if(GetSq(fromSq) == bK)
 				{	
 					if(castle & k)
 					{
-						if(board->position[f8] == emSq && board->position[g8] == emSq)
+						if(!GetSq(f8) && !GetSq(g8))
 						{
 							if(!IsSquareAttacked(board, e8, w) && !IsSquareAttacked(board, f8, w))
 								AddMove(list, SetMove(e8, g8, 0, 0, 0, 0, 1));
@@ -471,7 +471,7 @@ static void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 				
 					if(castle & q)
 					{
-						if(board->position[d8] == emSq && board->position[c8] == emSq && board->position[b8] == emSq)
+						if(!GetSq(d8) && !GetSq(c8) && !GetSq(b8))
 						{
 							if(!IsSquareAttacked(board, e8, w) && !IsSquareAttacked(board, d8, w))
 								AddMove(list, SetMove(e8, c8, 0, 0, 0, 0, 1));
@@ -481,16 +481,16 @@ static void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 			}
 			
 			// knights
-			if(side ? board->position[fromSq] == bN : board->position[fromSq] == wN)
+			if(side ? GetSq(fromSq) == bN : GetSq(fromSq) == wN)
 			{
 				for(int i = 0; i < 8; ++i)
 				{
 					int dir = sq + knightAttacks[i];
-					int delta = board->position[dir];
+					int delta = GetSq(dir);
 		
 					if(!(dir & 0x88))
 					{
-						if(side ? (delta == emSq || isWhitePiece(dir)) : (delta == emSq || isBlackPiece(dir)))
+						if(side ? (!delta || isWhitePiece(dir)) : (!delta || isBlackPiece(dir)))
 						{
 							if(!delta)
 								AddMove(list, SetMove(fromSq, dir, 0, 0, 0, 0, 0));
@@ -503,8 +503,8 @@ static void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 			
 			// bishops and queens
 			if(	side ? 
-					(board->position[fromSq] == bB) || (board->position[fromSq] == bQ) :
-					(board->position[fromSq] == wB) || (board->position[fromSq] == wQ)
+					(GetSq(fromSq) == bB) || (GetSq(fromSq) == bQ) :
+					(GetSq(fromSq) == wB) || (GetSq(fromSq) == wQ)
 			)
 			
 			{
@@ -514,18 +514,21 @@ static void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 		
 					while(!(dir & 0x88))
 					{
-						int delta = board->position[dir];
-			
+						int delta = GetSq(dir);
+						
+						// if hits own piece
 						if(side ? isBlackPiece(dir) : isWhitePiece(dir))
 							break;
-								
+						
+						// if hits opponent's piece		
 						else if(side ? isWhitePiece(dir) : isBlackPiece(dir))
 						{
 							AddMove(list, SetMove(fromSq, dir, 0, 1, 0, 0, 0));
 							break;
 						}
 			
-						else if(delta == emSq)
+						// on empty square
+						else if(!delta)
 						{		
 							AddMove(list, SetMove(fromSq, dir, 0, 0, 0, 0, 0));
 						}
@@ -537,8 +540,8 @@ static void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 			
 			// rooks and queens
 			if( side ? 
-					(board->position[fromSq] == bR) || (board->position[fromSq] == bQ) :
-					(board->position[fromSq] == wR) || (board->position[fromSq] == wQ)
+					(GetSq(fromSq) == bR) || (GetSq(fromSq) == bQ) :
+					(GetSq(fromSq) == wR) || (GetSq(fromSq) == wQ)
 			)
 			
 			{
@@ -548,18 +551,21 @@ static void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 		
 					while(!(dir & 0x88))
 					{
-						int delta = board->position[dir];
-			
+						int delta = GetSq(dir);
+						
+						// if hits own piece
 						if(side ? isBlackPiece(dir) : isWhitePiece(dir))
 							break;
 								
+						// if hits opponent's piece
 						else if(side ? isWhitePiece(dir) : isBlackPiece(dir))
 						{
 							AddMove(list, SetMove(fromSq, dir, 0, 1, 0, 0, 0));
 							break;
 						}
 			
-						else if(delta == emSq)
+						// on empty square
+						else if(!delta)
 						{		
 							AddMove(list, SetMove(fromSq, dir, 0, 0, 0, 0, 0));
 						}
@@ -570,16 +576,16 @@ static void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 			}
 			
 			// kings
-			if(side ? board->position[fromSq] == bK : board->position[fromSq] == wK)
+			if(side ? GetSq(fromSq) == bK : GetSq(fromSq) == wK)
 			{
 				for(int i = 0; i < 8; ++i)
 				{
 					int dir = sq + kingAttacks[i];
-					int delta = board->position[dir];
+					int delta = GetSq(dir);
 		
 					if(!(dir & 0x88))
 					{
-						if(side ? (delta == emSq || isWhitePiece(dir)) : (delta == emSq || isBlackPiece(dir)))
+						if(side ? (!delta || isWhitePiece(dir)) : (!delta || isBlackPiece(dir)))
 						{
 							if(!delta)
 								AddMove(list, SetMove(fromSq, dir, 0, 0, 0, 0, 0));
@@ -599,23 +605,8 @@ static void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
  ********************************************/
 
 #define TakeBack(board, boardStored) board[0] = boardStored[0];
-
-static int InCheck(CHESSBOARD *board, int sideToMove)
-{
-	int kingSquare = noSq;
-	sideToMove ? (kingSquare = kingSq(b)) : (kingSquare = kingSq(w)); 
-
-	/*for(int sq = 0; sq < 128; ++sq)
-	{
-		if(sideToMove ? board->position[sq] == bK : board->position[sq] == wK)
-		{
-			kingSquare = sq;
-			break;
-		}
-	}*/
-	
-	return IsSquareAttacked(board, kingSquare, sideToMove ^ 1);
-} 
+#define InCheck(board, sideToMove) \
+	IsSquareAttacked(board, sideToMove ? kingSq(b) : kingSq(w), sideToMove ^ 1)
 
 static int MakeMove(CHESSBOARD *board, int move)
 {
@@ -624,25 +615,24 @@ static int MakeMove(CHESSBOARD *board, int move)
 
 	int fromSq = GetMoveSource(move);
 	int toSq = GetMoveTarget(move);
-	//int side = board->side;
 
 	// move piece
-	board->position[toSq] = board->position[fromSq];
-	board->position[fromSq] = emSq;
+	GetSq(toSq) = GetSq(fromSq);
+	GetSq(fromSq) = emSq;
 	
 	// promotions
 	if(GetMovePromPiece(move))
 	{
-		board->position[toSq] = GetMovePromPiece(move);
-		board->position[fromSq] = emSq;
+		GetSq(toSq) = GetMovePromPiece(move);
+		GetSq(fromSq) = emSq;
 	}
 		
 	// en passant flag
 	if(GetMoveEnPassantFlag(move))
 	{
 		side ? 
-			(board->position[enPassant + 16] = 0) :
-			(board->position[enPassant - 16] = 0);
+			(GetSq(enPassant + 16) = 0) :
+			(GetSq(enPassant - 16) = 0);
 			
 		enPassant = noSq;
 	}
@@ -663,23 +653,23 @@ static int MakeMove(CHESSBOARD *board, int move)
 		switch(toSq)
 		{
 			case g1:
-				board->position[f1] = board->position[h1];
-				board->position[h1] = emSq;
+				GetSq(f1) = GetSq(h1);
+				GetSq(h1) = emSq;
 				break;
 				
 			case c1:
-				board->position[d1] = board->position[a1];
-				board->position[a1] = emSq;
+				GetSq(d1) = GetSq(a1);
+				GetSq(a1) = emSq;
 				break;
 				
 			case g8:
-				board->position[f8] = board->position[h8];
-				board->position[h8] = emSq;
+				GetSq(f8) = GetSq(h8);
+				GetSq(h8) = emSq;
 				break;
 				
 			case c8:
-				board->position[d8] = board->position[a8];
-				board->position[a8] = emSq;
+				GetSq(d8) = GetSq(a8);
+				GetSq(a8) = emSq;
 				break;
 		}
 	}
@@ -690,10 +680,7 @@ static int MakeMove(CHESSBOARD *board, int move)
 	
 	// update kingSq
 	if(GetSq(GetMoveTarget(move)) == wK || GetSq(GetMoveTarget(move)) == bK)
-	{
-		kingSq(side) = GetMoveTarget(move);
-		//PrintSquare(kingSq(side));	
-	}
+		kingSq(side) = GetMoveTarget(move);	
 	
 	// change side
 	side ^= 1;
@@ -711,88 +698,154 @@ static int MakeMove(CHESSBOARD *board, int move)
 
 
 /********************************************
- ***************** Perft ********************
+ *************** Evaluation *****************
  ********************************************/
 
-long nodes;
-
-int GetTimeMs()
+const int Mirror[128] =
 {
-	struct timeval t;
-	gettimeofday(&t, NULL);
-	return t.tv_sec*1000 + t.tv_usec/1000;
-}
+	a8, b8, c8, d8, e8, f8, g8, h8,    0, 0, 0, 0, 0, 0, 0, 0,
+	a7, b7, c7, d7, e7, f7, g7, h7,    0, 0, 0, 0, 0, 0, 0, 0,
+	a6, b6, c6, d6, e6, f6, g6, h6,    0, 0, 0, 0, 0, 0, 0, 0,
+	a5, b5, c5, d5, e5, f5, g5, h5,    0, 0, 0, 0, 0, 0, 0, 0,
+	a4, b4, c4, d4, e4, f4, g4, h4,    0, 0, 0, 0, 0, 0, 0, 0,
+	a3, b3, c3, d3, e3, f3, g3, h3,    0, 0, 0, 0, 0, 0, 0, 0,
+	a2, b2, c2, d2, e2, f2, g2, h2,    0, 0, 0, 0, 0, 0, 0, 0,
+	a1, b1, c1, d1, e1, f1, g1, h1,    0, 0, 0, 0, 0, 0, 0, 0
+};
 
-static void Perft(CHESSBOARD *board, int depth)
+#define MirrorSq(sq) Mirror[sq]
+
+const int materialWeight[15] = 
 {
-	if(depth == 0)
+	0, 100, 350, 350, 525, 1000, 10000, 0,
+	0, -100, -350, -350, -525, -1000, -10000
+};
+
+const int Pawns[128] = 
+{
+     0,	  0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+    10,	 10,   0, -10, -10,   0,  10,  10,    0, 0, 0, 0, 0, 0, 0, 0,
+     5,	  0,   0,	5,   5,   0,   0,   5,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,	  0,  10,  20,  20,  10,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     5,	  5,   5,  10,  10,   5,   5,   5,    0, 0, 0, 0, 0, 0, 0, 0,
+    10,	 10,  10,  20,  20,  10,  10,  10,    0, 0, 0, 0, 0, 0, 0, 0,
+    20,	 20,  20,  30,  30,  20,  20,  20,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,	  0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0
+};
+
+const int Knights[128] = 
+{
+     0, -10,   0,   0,   0,   0, -10,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   0,   5,   5,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,  10,  10,  10,  10,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,  10,  20,  20,  10,   5,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     5,  10,  15,  20,  20,  15,  10,   5,    0, 0, 0, 0, 0, 0, 0, 0,
+     5,  10,  10,  20,  20,  10,  10,   5,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   5,  10,  10,   5,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   0,   0,   0,   0,   0,   0,	  0, 0, 0, 0, 0, 0, 0, 0
+};
+
+const int Bishops[128] = 
+{
+     0,   0, -10,   0,   0, -10,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   0,  10,  10,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,  10,  15,  15,  10,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,  10,  15,  20,  20,  15,  10,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,  10,  15,  20,  20,  15,  10,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,  10,  15,  15,  10,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   0,  10,  10,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   0,   0,   0,   0,   0,   0, 	  0, 0, 0, 0, 0, 0, 0, 0
+};
+
+const int Rooks[128] =
+{
+     0,   0,   5,  10,  10,   5,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   5,  10,  10,   5,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   5,  10,  10,   5,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   5,  10,  10,   5,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   5,  10,  10,   5,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   5,  10,  10,   5,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+    25,  25,  25,  25,  25,  25,  25,  25,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   5,  10,  10,   5,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0
+};
+
+const int Kings[128] = 
+{
+	 5,   5,  20, -10, -10,   5,  30,   5,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+	 0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+	 0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+	 0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+	 0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+	 0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0
+};
+
+int EvaluatePosition(CHESSBOARD *board)
+{
+	int score = 0;
+	
+	for(int sq = 0; sq < 128; ++sq)
 	{
-		nodes++;
-		return;
+		if(!(sq & 0x88) && GetSq(sq))
+		{
+			// evaluate material
+			score += materialWeight[GetSq(sq)];
+		
+			// evaluate piece placement
+			/*switch(GetSq(sq))
+			{
+				case wP:
+					score += Pawns[sq];
+					break;
+					
+				case wN:
+					score += Knights[sq];
+					break;
+					
+				case wB:
+					score += Bishops[sq];
+					break;
+					
+				case wR:
+					score += Rooks[sq];
+					break;
+					
+				case wK:
+					score += Kings[sq];
+					break;
+					
+					
+				case bP:
+					score -= Pawns[MirrorSq(sq)];
+					break;
+					
+				case bN:
+					score -= Knights[MirrorSq(sq)];
+					break;
+					
+				case bB:
+					score -= Bishops[MirrorSq(sq)];
+					break;
+					
+				case bR:
+					score -= Rooks[MirrorSq(sq)];
+					break;
+					
+				case bK:
+					score -= Kings[MirrorSq(sq)];
+					break;
+			}*/
+		}
 	}
 	
-	MOVELIST list[1];
-	GenerateMoves(board, list);
-	
-	for(int moveNum = 0; moveNum < list->moveCount; ++moveNum)
-	{
-		CHESSBOARD boardStored[1];
-		boardStored[0] = board[0];
-	
-		if(!MakeMove(board, list->moves[moveNum].move))
-			continue;
+	if(!side)
+		return score;
 		
-		//getchar();
-		//PrintBoard(board);
-		//PrintMoveList(list);
-			
-		Perft(board, depth - 1);
-		TakeBack(board, boardStored);
-	}
+	else
+		return -score;
 }
 
-
-void PerftTest(CHESSBOARD *board, int depth)
-{
-	PrintBoard(board);
-	
-	printf("\n  Perft to depth: %d\n\n",depth);
-		
-	nodes = 0;
-	
-	int start = GetTimeMs();
-	
-	MOVELIST list[1];
-	GenerateMoves(board, list);
-	
-	int move;
-	
-	for(int moveNum = 0; moveNum < list->moveCount; ++moveNum)
-	{
-		move = list->moves[moveNum].move;
-		
-		CHESSBOARD boardStored[1];
-		boardStored[0] = board[0];
-		
-		if(!MakeMove(board, move))
-			continue;	
-		
-		long cumnodes = nodes;
-		
-		Perft(board, depth - 1);
-		TakeBack(board, boardStored);
-		
-		long oldnodes = nodes - cumnodes;
-		
-		printf("  move %d:	", moveNum + 1);
-		PrintMove(move);
-		printf(": %ld\n", oldnodes);
-    }
-	
-	printf("\n  Test Complete : %ld nodes visited in %dms\n\n", nodes, GetTimeMs() - start);
-	
-	return;
-}
 
 /********************************************
  **************** Search ********************
@@ -805,7 +858,7 @@ int NegaMaxSearch(CHESSBOARD *board, int depth)
 
 	if ( depth == 0 )
 	{
-		return 0; //EvaluatePosition(board);
+		return EvaluatePosition(board);
 	}
 	
 	int legalMoves = 0;
@@ -958,6 +1011,261 @@ void ParseFen(CHESSBOARD *board, char *fen)
 	}
 }
 
+int ParseMove(CHESSBOARD *board, char *moveStr)
+{
+	MOVELIST list[1];
+	GenerateMoves(board, list);
+
+	int parseFrom = (moveStr[0] - 'a') + (moveStr[1] - '0' - 1) * 16;
+	int parseTo = (moveStr[2] - 'a') + (moveStr[3] - '0' - 1) * 16;
+	int promPiece = 0;
+	
+	int move;
+	
+	for(int moveNum = 0; moveNum < list->moveCount; ++moveNum)
+	{
+		move = list->moves[moveNum].move;
+		
+		if(GetMoveSource(move) == parseFrom && GetMoveTarget(move) == parseTo)
+		{
+			promPiece = GetMovePromPiece(move);
+			
+			if(promPiece)
+			{	
+				if((promPiece == wN || promPiece == bN) && moveStr[4] == 'n')
+					return move;
+					
+				else if((promPiece == wB || promPiece == bB) && moveStr[4] == 'b')
+					return move;
+					
+				else if((promPiece == wR || promPiece == bR) && moveStr[4] == 'r')
+					return move;
+					
+				else if((promPiece == wQ || promPiece == bQ) && moveStr[4] == 'q')
+					return move;
+					
+				continue;
+			}
+		
+			return move;
+		}
+	}
+	
+	return 0;
+}
+
+#define inputBuffer (400 * 6)
+
+void UciLoop(CHESSBOARD *board)
+{
+	char line[inputBuffer];
+
+	printf("id name chengine\n");
+	printf("id author Maksim Korzh\n");
+	printf("uciok\n");
+	
+	while(1)
+	{
+		memset(&line[0], 0, sizeof(line));
+		fflush(stdout);
+		
+		if(!fgets(line, inputBuffer, stdin))
+			continue;
+			
+		if(line[0] == '\n')
+			continue;
+			
+		if (!strncmp(line, "uci", 3))
+		{
+			printf("id name chengine\n");
+			printf("id author Maksim Korzh\n");
+			printf("uciok\n");
+		}
+		
+		else if(!strncmp(line, "isready", 7))
+		{
+			printf("readyok\n");
+			continue;
+		}
+		
+		else if (!strncmp(line, "ucinewgame", 10))
+		{
+			ParseFen(board, initPos);
+			PrintBoard(board);
+		}
+		
+		else if(!strncmp(line, "position startpos moves", 23))
+		{
+			ParseFen(board, initPos);
+			PrintBoard(board);
+			
+			char *moves = line;
+			moves += 23;
+			
+			int countChar = -1;
+			
+			while(*moves)
+			{
+				if(*moves == ' ')
+				{
+					*moves++;
+					MakeMove(board, ParseMove(board, moves));
+				}
+				
+				*moves++;
+			}
+			
+			PrintBoard(board);
+		}
+		
+		else if(!strncmp(line, "position startpos", 17))
+		{
+			ParseFen(board, initPos);
+			PrintBoard(board);
+		}
+		
+		else if(!strncmp(line, "position fen", 12))
+		{
+			char *fen = line;
+			fen += 13;
+			
+			ParseFen(board, fen);
+			
+			char *moves = line;
+			
+			while(strncmp(moves, "moves", 5))
+			{
+				*moves++;
+				
+				if(*moves == '\0')
+					break;
+			}
+			
+			
+			moves += 4;
+			//printf("moves: \" %c \"", *moves);
+			
+			if(*moves == 's')
+			{
+				int countChar = -1;
+			
+				while(*moves)
+				{
+					if(*moves == ' ')
+					{
+						*moves++;
+						MakeMove(board, ParseMove(board, moves));
+					}
+				
+					*moves++;
+				}
+				
+				PrintBoard(board);
+			}
+			
+			else
+				PrintBoard(board);
+		}
+		
+		else if (!strncmp(line, "go depth", 8))
+		{
+			char *go = line;
+			go += 9;
+			
+			int depth = *go - '0';
+			
+			SearchPosition(board, depth);
+		}
+		
+		else if(!strncmp(line, "quit", 4))
+			break;
+			
+		else
+			SearchPosition(board, 4);
+	}
+}
+
+
+/********************************************
+ ***************** Perft ********************
+ ********************************************/
+
+long nodes;
+
+int GetTimeMs()
+{
+	struct timeval t;
+	gettimeofday(&t, NULL);
+	return t.tv_sec*1000 + t.tv_usec/1000;
+}
+
+static void Perft(CHESSBOARD *board, int depth)
+{
+	if(depth == 0)
+	{
+		nodes++;
+		return;
+	}
+	
+	MOVELIST list[1];
+	GenerateMoves(board, list);
+	
+	for(int moveNum = 0; moveNum < list->moveCount; ++moveNum)
+	{
+		CHESSBOARD boardStored[1];
+		boardStored[0] = board[0];
+	
+		if(!MakeMove(board, list->moves[moveNum].move))
+			continue;
+			
+		Perft(board, depth - 1);
+		TakeBack(board, boardStored);
+	}
+}
+
+
+void PerftTest(CHESSBOARD *board, int depth)
+{
+	PrintBoard(board);
+	
+	printf("\n  Perft to depth: %d\n\n",depth);
+		
+	nodes = 0;
+	
+	int start = GetTimeMs();
+	
+	MOVELIST list[1];
+	GenerateMoves(board, list);
+	
+	int move;
+	
+	for(int moveNum = 0; moveNum < list->moveCount; ++moveNum)
+	{
+		move = list->moves[moveNum].move;
+		
+		CHESSBOARD boardStored[1];
+		boardStored[0] = board[0];
+		
+		if(!MakeMove(board, move))
+			continue;	
+		
+		long cumnodes = nodes;
+		
+		Perft(board, depth - 1);
+		TakeBack(board, boardStored);
+		
+		long oldnodes = nodes - cumnodes;
+		
+		printf("  move %d:	", moveNum + 1);
+		PrintMove(move);
+		printf(": %ld\n", oldnodes);
+    }
+	
+	printf("\n  Test Complete : %ld nodes visited in %dms\n\n", nodes, GetTimeMs() - start);
+	
+	return;
+}
+
 
 /********************************************
  **************** Chenglite *****************
@@ -966,12 +1274,8 @@ void ParseFen(CHESSBOARD *board, char *fen)
 int main()
 {
 	CHESSBOARD board[1];
+	UciLoop(board);
 	
-	ParseFen(board, trickyPos);
-	
-	PerftTest(board, 4);
-	
-		
 	return 0;
 }
 
