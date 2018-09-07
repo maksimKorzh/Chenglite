@@ -205,7 +205,7 @@ typedef struct { int position[128]; int side; int enPassant; int castle; int kin
  ************* Move generator ***************
  ********************************************/
 
-static int IsSquareAttacked(CHESSBOARD *board, int sq, int attSide)
+static inline int IsSquareAttacked(CHESSBOARD *board, int sq, int attSide)
 {
 	// by pawns
 	if(!attSide)
@@ -608,7 +608,7 @@ static inline void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 #define InCheck(board, sideToMove) \
 	IsSquareAttacked(board, sideToMove ? kingSq(b) : kingSq(w), sideToMove ^ 1)
 
-static int MakeMove(CHESSBOARD *board, int move, int capFlag)
+static inline int MakeMove(CHESSBOARD *board, int move, int capFlag)
 {
 	// if capFlag make only captures else make all
 
@@ -738,7 +738,7 @@ const int Pawns[128] =
 {
      0,	  0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
     10,	 10,   0, -10, -10,   0,  10,  10,    0, 0, 0, 0, 0, 0, 0, 0,
-     5,	  0,   0,	5,   5,   0,   0,   5,    0, 0, 0, 0, 0, 0, 0, 0,
+     5,	  0,   0,   5,   5,   0,   0,   5,    0, 0, 0, 0, 0, 0, 0, 0,
      0,	  0,  10,  20,  20,  10,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
      5,	  5,   5,  10,  10,   5,   5,   5,    0, 0, 0, 0, 0, 0, 0, 0,
     10,	 10,  10,  20,  20,  10,  10,  10,    0, 0, 0, 0, 0, 0, 0, 0,
@@ -784,17 +784,18 @@ const int Rooks[128] =
 
 const int Kings[128] = 
 {
-	 5,   5,  20, -10, -10,   5,  30,   5,    0, 0, 0, 0, 0, 0, 0, 0,
+     5,   5,  20, -10, -10,   5,  30,   5,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   0, -10, -10,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
      0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-	 0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-	 0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-	 0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-	 0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
      0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
 	 0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0
 };
 
-int EvaluatePosition(CHESSBOARD *board)
+
+static inline int EvaluatePosition(CHESSBOARD *board)
 {
 	int score = 0;
 	
@@ -823,6 +824,7 @@ int EvaluatePosition(CHESSBOARD *board)
 				case wR:
 					score += Rooks[sq];
 					break;
+					
 					
 				case wK:
 					score += Kings[sq];
@@ -864,7 +866,7 @@ int EvaluatePosition(CHESSBOARD *board)
  **************** Search ********************
  ********************************************/
 
-int QuiescenceSearch(CHESSBOARD *board, int depth)
+static inline int QuiescenceSearch(CHESSBOARD *board, int depth)
 {
 	if(InCheck(board, side))
 		depth++;
@@ -903,7 +905,7 @@ int QuiescenceSearch(CHESSBOARD *board, int depth)
 
 
 
-int NegaMaxSearch(CHESSBOARD *board, int depth)
+static inline int NegaMaxSearch(CHESSBOARD *board, int depth)
 {
 	if(InCheck(board, side))
 		depth++;
@@ -947,7 +949,7 @@ int NegaMaxSearch(CHESSBOARD *board, int depth)
 	return bestScore;
 }
 
-void SearchPosition(CHESSBOARD *board, int depth)
+static inline void SearchPosition(CHESSBOARD *board, int depth)
 {
 	int bestScore = -50000;
 	int legalMoves = 0;
