@@ -26,6 +26,8 @@ enum squares {
 	a8 = 112, b8, c8, d8, e8, f8, g8, h8, noSq = -99
 };
 
+enum moveFlags { all, captures };
+
 char *unicodePieces[15] = {
 	".", "\u2659", "\u2658", "\u2657", "\u2656", "\u2655", "\u2654", "-",
 	" ", "\u265F", "\u265E", "\u265D", "\u265C", "\u265B", "\u265A"
@@ -66,7 +68,7 @@ typedef struct { int position[128]; int side; int enPassant; int castle; int kin
 
 
 /********************************************
- *************** Misc macros ****************
+ ************** Square macros ***************
  ********************************************/
 
 // 0x88 math
@@ -157,9 +159,7 @@ typedef struct { int position[128]; int side; int enPassant; int castle; int kin
  *************** Move macros ****************
  ********************************************/
  
- // Move format
- 
- /*
+ /* Move format
  
  	0000 0000 0000 0000 0111 1111		source square		0x7f
  	0000 0000 0011 1111 1000 0000		target square		0x3f80
@@ -608,92 +608,105 @@ static inline void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 #define InCheck(board, sideToMove) \
 	IsSquareAttacked(board, sideToMove ? kingSq(b) : kingSq(w), sideToMove ^ 1)
 
-static int MakeMove(CHESSBOARD *board, int move)
+static int MakeMove(CHESSBOARD *board, int move, int capFlag)
 {
-	CHESSBOARD boardStored[1];
-	boardStored[0] = board[0];
+	// if capFlag make only captures else make all
 
-	int fromSq = GetMoveSource(move);
-	int toSq = GetMoveTarget(move);
-
-	// move piece
-	GetSq(toSq) = GetSq(fromSq);
-	GetSq(fromSq) = emSq;
-	
-	// promotions
-	if(GetMovePromPiece(move))
+	if(!capFlag)
 	{
-		GetSq(toSq) = GetMovePromPiece(move);
+		CHESSBOARD boardStored[1];
+		boardStored[0] = board[0];
+
+		int fromSq = GetMoveSource(move);
+		int toSq = GetMoveTarget(move);
+
+		// move piece
+		GetSq(toSq) = GetSq(fromSq);
 		GetSq(fromSq) = emSq;
-	}
-		
-	// en passant flag
-	if(GetMoveEnPassantFlag(move))
-	{
-		side ? 
-			(GetSq(enPassant + 16) = 0) :
-			(GetSq(enPassant - 16) = 0);
-			
-		enPassant = noSq;
-	}
 	
-	enPassant = noSq;
-	
-	// pawn start flag
-	if(GetMovePawnStartFlag(move))
-	{
-		side ?
-			(enPassant = toSq + 16) :
-			(enPassant = toSq - 16);
-	}
-	
-	// castling flag
-	if(GetMoveCastleFlag(move))
-	{
-		switch(toSq)
+		// promotions
+		if(GetMovePromPiece(move))
 		{
-			case g1:
-				GetSq(f1) = GetSq(h1);
-				GetSq(h1) = emSq;
-				break;
-				
-			case c1:
-				GetSq(d1) = GetSq(a1);
-				GetSq(a1) = emSq;
-				break;
-				
-			case g8:
-				GetSq(f8) = GetSq(h8);
-				GetSq(h8) = emSq;
-				break;
-				
-			case c8:
-				GetSq(d8) = GetSq(a8);
-				GetSq(a8) = emSq;
-				break;
+			GetSq(toSq) = GetMovePromPiece(move);
+			GetSq(fromSq) = emSq;
 		}
-	}
+		
+		// en passant flag
+		if(GetMoveEnPassantFlag(move))
+		{
+			side ? 
+				(GetSq(enPassant + 16) = 0) :
+				(GetSq(enPassant - 16) = 0);
+			
+			enPassant = noSq;
+		}
 	
-	// update castling permission
-	castle &= castling[fromSq];
-	castle &= castling[toSq];
+		enPassant = noSq;
 	
-	// update kingSq
-	if(GetSq(GetMoveTarget(move)) == wK || GetSq(GetMoveTarget(move)) == bK)
-		kingSq(side) = GetMoveTarget(move);	
+		// pawn start flag
+		if(GetMovePawnStartFlag(move))
+		{
+			side ?
+				(enPassant = toSq + 16) :
+				(enPassant = toSq - 16);
+		}
 	
-	// change side
-	side ^= 1;
+		// castling flag
+		if(GetMoveCastleFlag(move))
+		{
+			switch(toSq)
+			{
+				case g1:
+					GetSq(f1) = GetSq(h1);
+					GetSq(h1) = emSq;
+					break;
+				
+				case c1:
+					GetSq(d1) = GetSq(a1);
+					GetSq(a1) = emSq;
+					break;
+				
+				case g8:
+					GetSq(f8) = GetSq(h8);
+					GetSq(h8) = emSq;
+					break;
+				
+				case c8:
+					GetSq(d8) = GetSq(a8);
+					GetSq(a8) = emSq;
+					break;
+			}
+		}
 	
-	// in check
-	if(InCheck(board, side ^ 1))
-	{
-		TakeBack(board, boardStored);
-		return 0;
+		// update castling permission
+		castle &= castling[fromSq];
+		castle &= castling[toSq];
+	
+		// update kingSq
+		if(GetSq(GetMoveTarget(move)) == wK || GetSq(GetMoveTarget(move)) == bK)
+			kingSq(side) = GetMoveTarget(move);	
+	
+		// change side
+		side ^= 1;
+	
+		// take back if king is in check
+		if(InCheck(board, side ^ 1))
+		{
+			TakeBack(board, boardStored);
+			return 0;
+		}
+	
+		else
+			return 1;
 	}
 	
 	else
-		return 1;
+	{
+		if(GetMoveCaptureFlag(move))
+			MakeMove(board, move, all);
+		else
+			return 0;
+	}
 }
 
 
@@ -717,8 +730,8 @@ const int Mirror[128] =
 
 const int materialWeight[15] = 
 {
-	0, 100, 350, 350, 525, 1000, 10000, 0,
-	0, -100, -350, -350, -525, -1000, -10000
+	0, 100, 300, 350, 525, 1000, 10000, 0,
+	0, -100, -300, -350, -525, -1000, -10000
 };
 
 const int Pawns[128] = 
@@ -793,7 +806,7 @@ int EvaluatePosition(CHESSBOARD *board)
 			score += materialWeight[GetSq(sq)];
 		
 			// evaluate piece placement
-			/*switch(GetSq(sq))
+			switch(GetSq(sq))
 			{
 				case wP:
 					score += Pawns[sq];
@@ -835,7 +848,7 @@ int EvaluatePosition(CHESSBOARD *board)
 				case bK:
 					score -= Kings[MirrorSq(sq)];
 					break;
-			}*/
+			}
 		}
 	}
 	
@@ -851,15 +864,52 @@ int EvaluatePosition(CHESSBOARD *board)
  **************** Search ********************
  ********************************************/
 
+int QuiescenceSearch(CHESSBOARD *board, int depth)
+{
+	if(InCheck(board, side))
+		depth++;
+
+	int score = EvaluatePosition(board);
+	int capScore = 0;
+	int bestScore = -50000;
+	
+	if(!depth)
+		return score;
+	
+	MOVELIST list[1];
+	GenerateMoves(board, list);
+	
+	for(int moveNum = 0; moveNum < list->moveCount; ++moveNum)
+	{
+		CHESSBOARD boardStored[1];
+		boardStored[0] = board[0];
+		
+		if(!MakeMove(board, list->moves[moveNum].move, captures))
+			continue;
+
+		capScore = -QuiescenceSearch(board, depth - 1);
+		
+		if(capScore > bestScore)
+			bestScore = capScore;
+			
+		TakeBack(board, boardStored);
+	}
+	
+	if(score > bestScore)
+		bestScore = score;
+
+	return bestScore;
+}
+
+
+
 int NegaMaxSearch(CHESSBOARD *board, int depth)
 {
 	if(InCheck(board, side))
 		depth++;
 
-	if ( depth == 0 )
-	{
-		return EvaluatePosition(board);
-	}
+	if(!depth)
+		return QuiescenceSearch(board, 4);
 	
 	int legalMoves = 0;
 	int bestScore = -50000;
@@ -872,7 +922,7 @@ int NegaMaxSearch(CHESSBOARD *board, int depth)
 		CHESSBOARD boardStored[1];
 		boardStored[0] = board[0];
 		
-		if(!MakeMove(board, list->moves[moveNum].move))
+		if(!MakeMove(board, list->moves[moveNum].move, all))
 			continue;
 		
 		legalMoves++;
@@ -884,11 +934,17 @@ int NegaMaxSearch(CHESSBOARD *board, int depth)
 		TakeBack(board, boardStored);
 	}
 	
-	// checkmate detection
-	if(!legalMoves && InCheck(board, side))
-		return -100000;
-	else
-		return bestScore;
+	// checkmate/stalemate detection
+	if(!legalMoves)
+	{
+		if(InCheck(board, side))
+			return -100000; // on checkmate
+			
+		else
+			return 0; // on stalemate
+	}
+			
+	return bestScore;
 }
 
 void SearchPosition(CHESSBOARD *board, int depth)
@@ -906,7 +962,7 @@ void SearchPosition(CHESSBOARD *board, int depth)
 		CHESSBOARD boardStored[1];
 		boardStored[0] = board[0];
 		
-		if(!MakeMove(board, list->moves[moveNum].move))
+		if(!MakeMove(board, list->moves[moveNum].move, all))
 			continue;
 			
 		legalMoves++;	
@@ -916,7 +972,6 @@ void SearchPosition(CHESSBOARD *board, int depth)
 		{
 			bestScore = score;
 		
-			
 			bestMove.move = list->moves[moveNum].move;
 			bestMove.score = bestScore;	
 		}
@@ -934,9 +989,9 @@ void SearchPosition(CHESSBOARD *board, int depth)
 	}	
 }
 
-
+ 
 /********************************************
- ******************* UCI ********************
+ ************* Parse FEN/Move ***************
  ********************************************/
 
 void ParseFen(CHESSBOARD *board, char *fen)
@@ -1054,13 +1109,18 @@ int ParseMove(CHESSBOARD *board, char *moveStr)
 	return 0;
 }
 
+
+/********************************************
+ ******************* UCI ********************
+ ********************************************/
+ 
 #define inputBuffer (400 * 6)
 
 void UciLoop(CHESSBOARD *board)
 {
 	char line[inputBuffer];
 
-	printf("id name chengine\n");
+	printf("id name Chenglite\n");
 	printf("id author Maksim Korzh\n");
 	printf("uciok\n");
 	
@@ -1077,7 +1137,7 @@ void UciLoop(CHESSBOARD *board)
 			
 		if (!strncmp(line, "uci", 3))
 		{
-			printf("id name chengine\n");
+			printf("id name Chenglite\n");
 			printf("id author Maksim Korzh\n");
 			printf("uciok\n");
 		}
@@ -1109,7 +1169,7 @@ void UciLoop(CHESSBOARD *board)
 				if(*moves == ' ')
 				{
 					*moves++;
-					MakeMove(board, ParseMove(board, moves));
+					MakeMove(board, ParseMove(board, moves), all);
 				}
 				
 				*moves++;
@@ -1141,9 +1201,7 @@ void UciLoop(CHESSBOARD *board)
 					break;
 			}
 			
-			
 			moves += 4;
-			//printf("moves: \" %c \"", *moves);
 			
 			if(*moves == 's')
 			{
@@ -1154,7 +1212,7 @@ void UciLoop(CHESSBOARD *board)
 					if(*moves == ' ')
 					{
 						*moves++;
-						MakeMove(board, ParseMove(board, moves));
+						MakeMove(board, ParseMove(board, moves), all);
 					}
 				
 					*moves++;
@@ -1199,7 +1257,7 @@ int GetTimeMs()
 	return t.tv_sec*1000 + t.tv_usec/1000;
 }
 
-static void Perft(CHESSBOARD *board, int depth)
+static void Perft(CHESSBOARD *board, int depth, int moveFlag)
 {
 	if(depth == 0)
 	{
@@ -1215,16 +1273,16 @@ static void Perft(CHESSBOARD *board, int depth)
 		CHESSBOARD boardStored[1];
 		boardStored[0] = board[0];
 	
-		if(!MakeMove(board, list->moves[moveNum].move))
+		if(!MakeMove(board, list->moves[moveNum].move, moveFlag))
 			continue;
 			
-		Perft(board, depth - 1);
+		Perft(board, depth - 1, moveFlag);
 		TakeBack(board, boardStored);
 	}
 }
 
 
-void PerftTest(CHESSBOARD *board, int depth)
+void PerftTest(CHESSBOARD *board, int depth, int moveFlag)
 {
 	PrintBoard(board);
 	
@@ -1246,12 +1304,12 @@ void PerftTest(CHESSBOARD *board, int depth)
 		CHESSBOARD boardStored[1];
 		boardStored[0] = board[0];
 		
-		if(!MakeMove(board, move))
+		if(!MakeMove(board, move, moveFlag))
 			continue;	
 		
 		long cumnodes = nodes;
 		
-		Perft(board, depth - 1);
+		Perft(board, depth - 1, moveFlag);
 		TakeBack(board, boardStored);
 		
 		long oldnodes = nodes - cumnodes;
