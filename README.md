@@ -27,6 +27,7 @@ Minimalist UCI chess engine written by self learner from scratch
 	adding a quiescence search to reduce the horizon effect and
 	stop engine giving pieces away.	
 
+
 # Intents and purposes
 
 	Chenglite is intended to be a source of inspiration for the
@@ -183,6 +184,7 @@ Minimalist UCI chess engine written by self learner from scratch
 # Release
 
 	Chenglite v1.0 is relaesed! https://github.com/maksimKorzh/Chenglite/releases
+
 
 # How to compile
 
