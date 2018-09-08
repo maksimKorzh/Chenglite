@@ -1,3 +1,7 @@
+# Chenglite
+Minimalist UCI chess engine written by self learner from scratch
+
+
 # Features
 
 	- 0x88 board representation;
