@@ -23,7 +23,7 @@ Self learner's UCI chess engine for linux
 	performance and make most functions declared static as well
 	as inline. The game performance has been improved a lot by
 	adding a quiescence search to reduce the horizon effect and
-	stop engine giving pieces.	
+	stop engine giving pieces away.	
 
 # Intents and purposes
 
