@@ -159,6 +159,25 @@
 	  consider
 
 
+# Forks and contribution
+
+	At the moment Chenglite looks like now more like a chess 
+	engine template rather than a complete program, so I would
+	be really happy if you fork the project to use it as a basis
+	for your own engine, in case if you're interested in writing
+	only the AI routines.
+	
+	I've also created a "community edition" branch for those who 
+	wants to contribute to the project, so please use it for pool
+	requests. I'd like Chenglite to become a community project, so
+	everybody who wants to join is welcome, no matter whether you're
+	professional developer or just another hobby programmer like me.
+	
+	
+# Release
+
+	Chenglite v1.0 is relaesed! https://github.com/maksimKorzh/Chenglite/releases
+
 # How to compile
 
 	Compile it with GCC via "gcc -Ofast Chenglite -o Chenglite" to get
