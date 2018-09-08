@@ -1,7 +1,3 @@
-# Chenglite
-
-Self learner's UCI chess engine for linux
-
 # Features
 
 	- 0x88 board representation;
