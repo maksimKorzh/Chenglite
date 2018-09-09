@@ -968,8 +968,6 @@ static inline int QuiescenceSearch(int alpha, int beta, CHESSBOARD *board, int d
 static inline int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, int depth)
 {
 	int legalMoves = 0;
-	//int bestScore = -50000;
-	
 	
 	if(InCheck(board, side))
 		depth++;
@@ -977,7 +975,7 @@ static inline int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, int dept
 	if(!depth)
 	{
 		searchNodes++;
-		return QuiescenceSearch(-50000, 50000, board, 6);	
+		return QuiescenceSearch(alpha, beta, board, 4);	
 	}
 	
 	MOVELIST list[1];
