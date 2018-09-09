@@ -1,16 +1,69 @@
+/*******************************************************************************
+ ************************ Chenglite v1.0 by MaksimKorzh ************************
+ *******************************************************************************
+ *                                                                             *
+ *      Minimalist UCI chess engine written by self learner from scratch       *
+ *                                                                             *                   
+ *******************************************************************************
+ *         ************************ FEATURES ************************          *
+ *******************************************************************************
+ *                                                                             *
+ *  - 0x88 board representation                                                *
+ *  - move generation via calculations                                         *
+ *  - copy-make make move approach                                             *
+ *  - material and piece placement evaluation                                  *
+ *  - nega max brute force search algorithm                                    *
+ *  - fixed depth quiescence search                                            *
+ *  - UCI protocol with depth search only                                      *
+ *                                                                             *
+ *                                                                             * 
+ *******************************************************************************
+ *         ****************** Intents and purposes ******************          *
+ *******************************************************************************
+ *                                                                             *
+ *  Chenglite is intended to be a source of inspiration for the beginners and  *
+ *  hobby programmers dreaming to write their own bug free chess programs. At  *
+ *  first it's not that easy to take the idea that your engine is going to be  *
+ *  quite weak and slow, but don't let it be the reason to stop further work,  *
+ *  try to dive right into the developing process instead and you will notice  *
+ *  pretty soon the true reason why are you doing this.                        *
+ *                                                                             *
+ *                                                                             *
+ *******************************************************************************
+ *         ********* My chess engine development philosophy *********          *
+ *******************************************************************************
+ *  - try each time to do the same thing you've done before,                   *
+ *    but in less code                                                         *
+ *                                                                             *
+ *  - try to get the best performance                                          *
+ *    out of a given algorithms                                                *
+ *                                                                             *
+ *  - don't add new features until being sure you've got everything out        *
+ *    of the previously added ones                                             *
+ *                                                                             *
+ *  - don't try to write the strongest chess engine in the world,              *
+ *    remember that Stockfish and Leela chess has been developed               *
+ *    by numerous top level programmers                                        *
+ *                                                                             *
+ *  - don't hurry, chess engine development requires more accuracy             *
+ *    rather than high speed coding skills                                     *
+ *                                                                             *
+ *  - enjoy the process, this is the most principle thing to                   *
+ *    consider                                                                 *
+ *                                                                             *
+ *                                                                             *
+ *******************************************************************************
+ ********** Chenglite Copyleft (No Copiright) 2018 to Maksim Korzh *************
+ *******************************************************************************/
+
 #include <stdio.h>
 #include "sys/time.h"
 #include "string.h"
 
 
-// Positions
-#define  initPos "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 "
-#define  trickyPos "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 " // 48 possible moves
-#define  whitePawnMoves "rnbqkb1r/pp1p1pPp/8/2p1pP2/1P1P4/3P3P/P1P1P3/RNBQKBNR w KQkq e6 0 1" // 26 possible moves
-#define  blackPawnMoves "rnbqkbnr/p1p1p3/3p3p/1p1p4/2P1Pp2/8/PP1P1PpP/RNBQKB1R b KQkq e3 0 1" // 26 possible moves
-#define  castleMoves "r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 1 "
-
 // Definitions
+#define  initPos "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 "
+
 enum side { w, b };
 enum pieces { emSq, wP, wN,	wB,	wR,	wQ,	wK,	offBoard = 8, bP, bN, bB, bR, bQ, bK };
 enum castling { K = 1, Q = 2, k = 4, q = 8 };

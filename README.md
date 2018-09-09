@@ -6,13 +6,13 @@ Minimalist UCI chess engine written by self learner from scratch
 
 # Features
 
-	- 0x88 board representation;
+	- 0x88 board representation
 	- move generation via calculations
 	- copy-make make move approach
-	- material and piece placement evaluation;
-	- nega max brute force search algorithm;
-	- fixed depth quiescence search;
-	- UCI protocol with depth search only;
+	- material and piece placement evaluation
+	- nega max brute force search algorithm
+	- fixed depth quiescence search
+	- UCI protocol with depth search only
 
 
 # About
