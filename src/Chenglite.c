@@ -63,6 +63,7 @@
 
 // Definitions
 #define  initPos "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 "
+#define  trickyPos "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 " // 48 possible moves
 
 enum side { w, b };
 enum pieces { emSq, wP, wN,	wB,	wR,	wQ,	wK,	offBoard = 8, bP, bN, bB, bR, bQ, bK };
@@ -118,7 +119,6 @@ const int castling[128] =
 typedef struct { int move; int score; } MOVE;
 typedef struct { MOVE moves[256]; int moveCount; } MOVELIST;
 typedef struct { int position[128]; int side; int enPassant; int castle; int kingSq[2]; } CHESSBOARD;
-
 
 /********************************************
  ************** Square macros ***************
@@ -816,7 +816,7 @@ const int Bishops[128] =
      0,   0, -10,   0,   0, -10,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
      0,   0,   0,  10,  10,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
      0,   0,  10,  15,  15,  10,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-     0,  10,  15,  20,  20,  15,  10,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,  10,  20,  20,  20,  20,  10,   0,    0, 0, 0, 0, 0, 0, 0, 0,
      0,  10,  15,  20,  20,  15,  10,   0,    0, 0, 0, 0, 0, 0, 0, 0,
      0,   0,  10,  15,  15,  10,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
      0,   0,   0,  10,  10,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
@@ -918,15 +918,17 @@ static inline int EvaluatePosition(CHESSBOARD *board)
 /********************************************
  **************** Search ********************
  ********************************************/
+long searchNodes = 0;
 
-static inline int QuiescenceSearch(CHESSBOARD *board, int depth)
+static inline int QuiescenceSearch(int alpha, int beta, CHESSBOARD *board, int depth)
 {
+	//int depth = 0;
+
 	if(InCheck(board, side))
 		depth++;
 
 	int score = EvaluatePosition(board);
 	int capScore = 0;
-	int bestScore = -50000;
 	
 	if(!depth)
 		return score;
@@ -934,6 +936,7 @@ static inline int QuiescenceSearch(CHESSBOARD *board, int depth)
 	MOVELIST list[1];
 	GenerateMoves(board, list);
 	
+	// if there are captures in position
 	for(int moveNum = 0; moveNum < list->moveCount; ++moveNum)
 	{
 		CHESSBOARD boardStored[1];
@@ -941,33 +944,41 @@ static inline int QuiescenceSearch(CHESSBOARD *board, int depth)
 		
 		if(!MakeMove(board, list->moves[moveNum].move, captures))
 			continue;
-
-		capScore = -QuiescenceSearch(board, depth - 1);
 		
-		if(capScore > bestScore)
-			bestScore = capScore;
+		//depth++;
+		capScore = -QuiescenceSearch(-beta, -alpha, board, depth - 1);
+
+		if(capScore >= beta)
+			return beta;
+		
+		if(capScore > alpha)
+			alpha = capScore;
 			
 		TakeBack(board, boardStored);
 	}
 	
-	if(score > bestScore)
-		bestScore = score;
+	// if there are no captures
+	if(score > alpha)
+		alpha = score;
 
-	return bestScore;
+	return alpha;
 }
 
 
-
-static inline int NegaMaxSearch(CHESSBOARD *board, int depth)
+static inline int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, int depth)
 {
+	int legalMoves = 0;
+	//int bestScore = -50000;
+	
+	
 	if(InCheck(board, side))
 		depth++;
 
 	if(!depth)
-		return QuiescenceSearch(board, 4);
-	
-	int legalMoves = 0;
-	int bestScore = -50000;
+	{
+		searchNodes++;
+		return QuiescenceSearch(-50000, 50000, board, 6);	
+	}
 	
 	MOVELIST list[1];
 	GenerateMoves(board, list);
@@ -981,10 +992,13 @@ static inline int NegaMaxSearch(CHESSBOARD *board, int depth)
 			continue;
 		
 		legalMoves++;
-		int score = -NegaMaxSearch(board, depth - 1);
+		int score = -NegaMaxSearch(-beta, -alpha, board, depth - 1);
 		
-		if(score > bestScore)
-			bestScore = score;
+		if(score >= beta)
+			return beta;
+		
+		if(score > alpha)
+			alpha = score;
 			
 		TakeBack(board, boardStored);
 	}
@@ -999,8 +1013,9 @@ static inline int NegaMaxSearch(CHESSBOARD *board, int depth)
 			return 0; // on stalemate
 	}
 			
-	return bestScore;
+	return alpha;
 }
+
 
 static inline void SearchPosition(CHESSBOARD *board, int depth)
 {
@@ -1021,7 +1036,7 @@ static inline void SearchPosition(CHESSBOARD *board, int depth)
 			continue;
 			
 		legalMoves++;	
-		int score = -NegaMaxSearch(board, depth - 1);
+		int score = -NegaMaxSearch(-50000, 50000, board, depth - 1);
 		
 		if(score > bestScore)
 		{
@@ -1036,7 +1051,7 @@ static inline void SearchPosition(CHESSBOARD *board, int depth)
 	
 	if(legalMoves)
 	{
-		printf("info score cp %d depth %d\n", bestMove.score, depth);
+		printf("info score cp %d depth %d nodes %ld\n", bestMove.score, depth, searchNodes);
 	
 		printf("bestmove ");
 		PrintMove(bestMove.move);
@@ -1387,6 +1402,10 @@ void PerftTest(CHESSBOARD *board, int depth, int moveFlag)
 int main()
 {
 	CHESSBOARD board[1];
+	
+	//ParseFen(board, initPos);
+	//SearchPosition(board, 6);
+	
 	UciLoop(board);
 	
 	return 0;

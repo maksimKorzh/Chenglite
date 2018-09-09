@@ -10,8 +10,9 @@ Minimalist UCI chess engine written by self learner from scratch
 	- move generation via calculations
 	- copy-make make move approach
 	- material and piece placement evaluation
-	- nega max brute force search algorithm
+	- nega max search algorithm
 	- fixed depth quiescence search
+	- alpha beta prunning
 	- UCI protocol with depth search only
 
 
