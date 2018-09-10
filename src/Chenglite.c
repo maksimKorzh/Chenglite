@@ -97,12 +97,14 @@ int pieceChars[67] = {
 	[64] = bP, [62] = bN, [50] = bB, [66] = bR, [65] = bQ, [59] = bK
 };
 
+// attack directions
 const int pawnAttacks[4] = {15, 17, -15, -17};
 const int knightAttacks[8] = {31, 33, 14, 18, -31, -33, -14, -18};
 const int kingAttacks[8] = {1, 15, 16, 17, -1, -15, -16, -17};
 const int bishopAttacks[4] = {15, 17, -15, -17};
 const int rookAttacks[4] = {1, 16, -1, -16};
 
+// tracking whether kings or rooks moved
 const int castling[128] = 
 {
 	13, 15, 15, 15, 12, 15, 15, 14, 8, 8, 8, 8, 8, 8, 8, 8,
@@ -115,10 +117,94 @@ const int castling[128] =
 	 7, 15, 15, 15,  3, 15, 15, 11, 8, 8, 8, 8, 8, 8, 8, 8
 };
 
+// material weight of pieces
+const int materialWeight[15] = 
+{
+	0, 100, 300, 350, 525, 1000, 10000, 0,
+	0, -100, -300, -350, -525, -1000, -10000
+};
 
+// piece olacement evaluation tables
+const int Pawns[128] = 
+{
+     0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+    10,  10,   0, -10, -10,   0,  10,  10,    0, 0, 0, 0, 0, 0, 0, 0,
+     5,   0,   0,   5,   5,   0,   0,   5,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,  10,  20,  20,  10,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     5,   5,   5,  10,  10,   5,   5,   5,    0, 0, 0, 0, 0, 0, 0, 0,
+    10,  10,  10,  20,  20,  10,  10,  10,    0, 0, 0, 0, 0, 0, 0, 0,
+    20,  20,  20,  30,  30,  20,  20,  20,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0
+};
+
+const int Knights[128] = 
+{
+     0, -10,   0,   0,   0,   0, -10,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   0,   5,   5,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,  10,  10,  10,  10,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,  10,  20,  20,  10,   5,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     5,  10,  15,  20,  20,  15,  10,   5,    0, 0, 0, 0, 0, 0, 0, 0,
+     5,  10,  10,  20,  20,  10,  10,   5,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   5,  10,  10,   5,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0
+};
+
+const int Bishops[128] = 
+{
+     0,   0, -10,   0,   0, -10,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   0,  10,  10,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,  10,  15,  15,  10,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,  10,  20,  20,  20,  20,  10,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,  10,  15,  20,  20,  15,  10,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,  10,  15,  15,  10,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   0,  10,  10,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0
+};
+
+const int Rooks[128] =
+{
+     0,   0,   5,  10,  10,   5,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   5,  10,  10,   5,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   5,  10,  10,   5,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   5,  10,  10,   5,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   5,  10,  10,   5,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   5,  10,  10,   5,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+    25,  25,  25,  25,  25,  25,  25,  25,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   5,  10,  10,   5,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0
+};
+
+const int Kings[128] = 
+{
+     5,   5,  20, -10, -10,   5,  30,   5,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   0, -10, -10,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0
+};
+
+// Mirror evaluation tables for opposite side
+const int Mirror[128] =
+{
+	a8, b8, c8, d8, e8, f8, g8, h8,    0, 0, 0, 0, 0, 0, 0, 0,
+	a7, b7, c7, d7, e7, f7, g7, h7,    0, 0, 0, 0, 0, 0, 0, 0,
+	a6, b6, c6, d6, e6, f6, g6, h6,    0, 0, 0, 0, 0, 0, 0, 0,
+	a5, b5, c5, d5, e5, f5, g5, h5,    0, 0, 0, 0, 0, 0, 0, 0,
+	a4, b4, c4, d4, e4, f4, g4, h4,    0, 0, 0, 0, 0, 0, 0, 0,
+	a3, b3, c3, d3, e3, f3, g3, h3,    0, 0, 0, 0, 0, 0, 0, 0,
+	a2, b2, c2, d2, e2, f2, g2, h2,    0, 0, 0, 0, 0, 0, 0, 0,
+	a1, b1, c1, d1, e1, f1, g1, h1,    0, 0, 0, 0, 0, 0, 0, 0
+};
+
+#define MirrorSq(sq) Mirror[sq]
+
+// move, movelist, board, search structs
 typedef struct { int move; int score; } MOVE;
 typedef struct { MOVE moves[256]; int moveCount; } MOVELIST;
 typedef struct { int position[128]; int side; int enPassant; int castle; int kingSq[2]; } CHESSBOARD;
+typedef struct { long nodes; int bestScore; int bestMove; } SEARCH;
 
 /********************************************
  ************** Square macros ***************
@@ -211,7 +297,7 @@ typedef struct { int position[128]; int side; int enPassant; int castle; int kin
 /********************************************
  *************** Move macros ****************
  ********************************************/
- 
+  
  /* Move format
  
  	0000 0000 0000 0000 0111 1111		source square		0x7f
@@ -223,8 +309,6 @@ typedef struct { int position[128]; int side; int enPassant; int castle; int kin
  	0010 0000 0000 0000 0000 0000		castling flag		0x200000
  
  */
-
-#define LoopMoves for(int moveCount = 0; moveCount < list->moveCount; ++moveCount)
 
 #define SetMove(f, t, prom, cap, pawn, e, cas) \
 	((f) | (t << 7) | (prom << 14) | (cap << 18) | (pawn << 19) | (e << 20) | (cas << 21))
@@ -242,12 +326,14 @@ typedef struct { int position[128]; int side; int enPassant; int castle; int kin
 	PrintSquare(GetMoveSource(move)); \
 	PrintSquare(GetMoveTarget(move)); \
 	PrintPromotedPiece(GetMovePromPiece(move)); \
-	printf("	  cap: %d  pawnStart: %d  enPass: %d  castle: %d", \
+	/*printf("	  cap: %d  pawnStart: %d  enPass: %d  castle: %d", \
 	GetMoveCaptureFlag(move), \
 	GetMovePawnStartFlag(move), \
 	GetMoveEnPassantFlag(move), \
-	GetMoveCastleFlag(move));
+	GetMoveCastleFlag(move));*/
 	
+#define LoopMoves for(int moveCount = 0; moveCount < list->moveCount; ++moveCount)
+
 #define PrintMoveList(list) \
 	LoopMoves { PrintMove(list->moves[moveCount].move); \
 	printf("	SCORE: %d\n", list->moves[moveCount].score); } \
@@ -767,87 +853,6 @@ static inline int MakeMove(CHESSBOARD *board, int move, int capFlag)
  *************** Evaluation *****************
  ********************************************/
 
-const int Mirror[128] =
-{
-	a8, b8, c8, d8, e8, f8, g8, h8,    0, 0, 0, 0, 0, 0, 0, 0,
-	a7, b7, c7, d7, e7, f7, g7, h7,    0, 0, 0, 0, 0, 0, 0, 0,
-	a6, b6, c6, d6, e6, f6, g6, h6,    0, 0, 0, 0, 0, 0, 0, 0,
-	a5, b5, c5, d5, e5, f5, g5, h5,    0, 0, 0, 0, 0, 0, 0, 0,
-	a4, b4, c4, d4, e4, f4, g4, h4,    0, 0, 0, 0, 0, 0, 0, 0,
-	a3, b3, c3, d3, e3, f3, g3, h3,    0, 0, 0, 0, 0, 0, 0, 0,
-	a2, b2, c2, d2, e2, f2, g2, h2,    0, 0, 0, 0, 0, 0, 0, 0,
-	a1, b1, c1, d1, e1, f1, g1, h1,    0, 0, 0, 0, 0, 0, 0, 0
-};
-
-#define MirrorSq(sq) Mirror[sq]
-
-const int materialWeight[15] = 
-{
-	0, 100, 300, 350, 525, 1000, 10000, 0,
-	0, -100, -300, -350, -525, -1000, -10000
-};
-
-const int Pawns[128] = 
-{
-     0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-    10,  10,   0, -10, -10,   0,  10,  10,    0, 0, 0, 0, 0, 0, 0, 0,
-     5,   0,   0,   5,   5,   0,   0,   5,    0, 0, 0, 0, 0, 0, 0, 0,
-     0,   0,  10,  20,  20,  10,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-     5,   5,   5,  10,  10,   5,   5,   5,    0, 0, 0, 0, 0, 0, 0, 0,
-    10,  10,  10,  20,  20,  10,  10,  10,    0, 0, 0, 0, 0, 0, 0, 0,
-    20,  20,  20,  30,  30,  20,  20,  20,    0, 0, 0, 0, 0, 0, 0, 0,
-     0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0
-};
-
-const int Knights[128] = 
-{
-     0, -10,   0,   0,   0,   0, -10,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-     0,   0,   0,   5,   5,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-     0,   0,  10,  10,  10,  10,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-     0,   0,  10,  20,  20,  10,   5,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-     5,  10,  15,  20,  20,  15,  10,   5,    0, 0, 0, 0, 0, 0, 0, 0,
-     5,  10,  10,  20,  20,  10,  10,   5,    0, 0, 0, 0, 0, 0, 0, 0,
-     0,   0,   5,  10,  10,   5,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-     0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0
-};
-
-const int Bishops[128] = 
-{
-     0,   0, -10,   0,   0, -10,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-     0,   0,   0,  10,  10,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-     0,   0,  10,  15,  15,  10,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-     0,  10,  20,  20,  20,  20,  10,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-     0,  10,  15,  20,  20,  15,  10,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-     0,   0,  10,  15,  15,  10,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-     0,   0,   0,  10,  10,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-     0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0
-};
-
-const int Rooks[128] =
-{
-     0,   0,   5,  10,  10,   5,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-     0,   0,   5,  10,  10,   5,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-     0,   0,   5,  10,  10,   5,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-     0,   0,   5,  10,  10,   5,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-     0,   0,   5,  10,  10,   5,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-     0,   0,   5,  10,  10,   5,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-    25,  25,  25,  25,  25,  25,  25,  25,    0, 0, 0, 0, 0, 0, 0, 0,
-     0,   0,   5,  10,  10,   5,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0
-};
-
-const int Kings[128] = 
-{
-     5,   5,  20, -10, -10,   5,  30,   5,    0, 0, 0, 0, 0, 0, 0, 0,
-     0,   0,   0, -10, -10,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-     0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-     0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-     0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-     0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-     0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-     0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0
-};
-
-
 static inline int EvaluatePosition(CHESSBOARD *board)
 {
 	int score = 0;
@@ -918,12 +923,9 @@ static inline int EvaluatePosition(CHESSBOARD *board)
 /********************************************
  **************** Search ********************
  ********************************************/
-long searchNodes = 0;
 
-static inline int QuiescenceSearch(int alpha, int beta, CHESSBOARD *board, int depth)
+static inline int QuiescenceSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info, int depth)
 {
-	//int depth = 0;
-
 	if(InCheck(board, side))
 		depth++;
 
@@ -946,7 +948,7 @@ static inline int QuiescenceSearch(int alpha, int beta, CHESSBOARD *board, int d
 			continue;
 		
 		//depth++;
-		capScore = -QuiescenceSearch(-beta, -alpha, board, depth - 1);
+		capScore = -QuiescenceSearch(-beta, -alpha, board, info, depth - 1);
 
 		if(capScore >= beta)
 			return beta;
@@ -965,17 +967,20 @@ static inline int QuiescenceSearch(int alpha, int beta, CHESSBOARD *board, int d
 }
 
 
-static inline int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, int depth)
+static inline int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info, int depth)
 {
 	int legalMoves = 0;
+	int bestScore = -50000;
+	int bestMove = 0;
+	int oldAlpha = alpha;
 	
 	if(InCheck(board, side))
 		depth++;
 
 	if(!depth)
 	{
-		searchNodes++;
-		return QuiescenceSearch(alpha, beta, board, 4);	
+		info->nodes++;
+		return QuiescenceSearch(alpha, beta, board, info, 4);	
 	}
 	
 	MOVELIST list[1];
@@ -990,14 +995,20 @@ static inline int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, int dept
 			continue;
 		
 		legalMoves++;
-		int score = -NegaMaxSearch(-beta, -alpha, board, depth - 1);
+		int score = -NegaMaxSearch(-beta, -alpha, board, info, depth - 1);
 		
-		if(score >= beta)
-			return beta;
-		
-		if(score > alpha)
-			alpha = score;
+		if(score > bestScore)
+		{
+			bestScore = score;
+			bestMove = list->moves[moveNum].move;
 			
+			if(score >= beta)
+				return beta;
+	
+			if(score > alpha)
+				alpha = score;
+		}
+		
 		TakeBack(board, boardStored);
 	}
 	
@@ -1010,51 +1021,23 @@ static inline int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, int dept
 		else
 			return 0; // on stalemate
 	}
+	
+	info->bestScore = bestScore;
+	info->bestMove = bestMove;
 			
 	return alpha;
 }
 
 
-static inline void SearchPosition(CHESSBOARD *board, int depth)
+static inline void SearchPosition(CHESSBOARD *board, SEARCH *info, int depth)
 {
-	int bestScore = -50000;
-	int legalMoves = 0;
+	int score = NegaMaxSearch(-50000, 50000, board, info, depth);
+	
+	printf("info score cp %d depth %d nodes %ld\n", info->bestScore, depth, info->nodes);
 
-	MOVELIST list[1];
-	GenerateMoves(board, list);
-	
-	MOVE bestMove;
-	
-	for(int moveNum = 0; moveNum < list->moveCount; ++moveNum)
-	{
-		CHESSBOARD boardStored[1];
-		boardStored[0] = board[0];
-		
-		if(!MakeMove(board, list->moves[moveNum].move, all))
-			continue;
-			
-		legalMoves++;	
-		int score = -NegaMaxSearch(-50000, 50000, board, depth - 1);
-		
-		if(score > bestScore)
-		{
-			bestScore = score;
-		
-			bestMove.move = list->moves[moveNum].move;
-			bestMove.score = bestScore;	
-		}
-		
-		TakeBack(board, boardStored);
-	}
-	
-	if(legalMoves)
-	{
-		printf("info score cp %d depth %d nodes %ld\n", bestMove.score, depth, searchNodes);
-	
-		printf("bestmove ");
-		PrintMove(bestMove.move);
-		printf("\n");
-	}	
+	printf("bestmove ");
+	PrintMove(info->bestMove);
+	printf("\n");
 }
 
  
@@ -1184,7 +1167,7 @@ int ParseMove(CHESSBOARD *board, char *moveStr)
  
 #define inputBuffer (400 * 6)
 
-void UciLoop(CHESSBOARD *board)
+void UciLoop(CHESSBOARD *board, SEARCH *info)
 {
 	char line[inputBuffer];
 
@@ -1300,14 +1283,14 @@ void UciLoop(CHESSBOARD *board)
 			
 			int depth = *go - '0';
 			
-			SearchPosition(board, depth);
+			SearchPosition(board, info, depth);
 		}
 		
 		else if(!strncmp(line, "quit", 4))
 			break;
 			
 		else
-			SearchPosition(board, 4);
+			SearchPosition(board, info, 4);
 	}
 }
 
@@ -1400,11 +1383,15 @@ void PerftTest(CHESSBOARD *board, int depth, int moveFlag)
 int main()
 {
 	CHESSBOARD board[1];
+	SEARCH info[1];
+	info->nodes = 0;
+	info->bestScore = -50000;
+	info->bestMove = 0;
 	
 	//ParseFen(board, initPos);
-	//SearchPosition(board, 6);
+	//SearchPosition(board, info, 3);
 	
-	UciLoop(board);
+	UciLoop(board, info);
 	
 	return 0;
 }
