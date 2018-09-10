@@ -1268,12 +1268,9 @@ void UciLoop(CHESSBOARD *board, SEARCH *info)
 				
 					*moves++;
 				}
-				
-				PrintBoard(board);
 			}
 			
-			else
-				PrintBoard(board);
+			PrintBoard(board);
 		}
 		
 		else if (!strncmp(line, "go depth", 8))
