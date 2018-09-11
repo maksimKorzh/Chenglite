@@ -974,7 +974,8 @@ static inline int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *
 	int bestScore = -50000;
 	int bestMove = 0;
 	int bestLast = 0;
-	int oldAlpha = alpha;
+	int oldPly = info->ply;
+	//int oldAlpha = alpha;
 	
 	if(info->bestMove)
 		bestLast = info->bestMove;
@@ -1014,7 +1015,7 @@ static inline int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *
 				return beta;
 				
 			if(score > alpha)
-				alpha = score;
+				alpha = score;	
 		}
 		
 		TakeBack(board, boardStored);	
@@ -1042,23 +1043,19 @@ static inline int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *
 
 static inline void SearchPosition(CHESSBOARD *board, SEARCH *info, int depth)
 {
+	// iterative deepening
 	for(int currentDepth = 1; currentDepth <= depth; currentDepth++)
 	{
 		NegaMaxSearch(-50000, 50000, board, info, currentDepth);
 		printf("info score cp %d depth %d nodes %ld\n", info->bestScore, currentDepth, info->nodes);
 	}
 	
-	//printf("currentDepth: %d\n", currentDepth);
-	//printf("info score cp %d depth %d nodes %ld\n", info->bestScore, depth, info->nodes);
-
 	if(info->bestMove)
 	{
 		printf("bestmove ");
 		PrintMove(info->bestMove);
 		printf("\n");
 	}
-	
-	
 }
 
  
@@ -1410,7 +1407,7 @@ int main()
 	//ParseFen(board, initPos);
 	//PrintBoard(board);
 	
-	//SearchPosition(board, info, 1);
+	//SearchPosition(board, info, 4);
 	
 	UciLoop(board, info);
 	
