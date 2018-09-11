@@ -12,7 +12,7 @@ Minimalist UCI chess engine written by self learner from scratch
 	- material and piece placement evaluation
 	- nega max search algorithm
 	- fixed depth quiescence search
-	- alpha beta prunning
+	- alpha beta pruning
 	- UCI protocol with depth search only
 
 
