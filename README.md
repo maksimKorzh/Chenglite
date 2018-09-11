@@ -131,4 +131,4 @@ Minimalist UCI chess engine written by self learner from scratch
 			
 			
 # Feedback
-	Any feedbacks are appriciated at freesoft.for.people@gmail.com
+	Any feedbacks are appreciated at freesoft.for.people@gmail.com
