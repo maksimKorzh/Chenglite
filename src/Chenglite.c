@@ -204,7 +204,7 @@ const int Mirror[128] =
 typedef struct { int move; int score; } MOVE;
 typedef struct { MOVE moves[256]; int moveCount; } MOVELIST;
 typedef struct { int position[128]; int side; int enPassant; int castle; int kingSq[2]; } CHESSBOARD;
-typedef struct { long nodes; int bestScore; int bestMove; } SEARCH;
+typedef struct { long nodes; int bestScore, bestMove, ply; } SEARCH;
 
 /********************************************
  ************** Square macros ***************
@@ -966,13 +966,18 @@ static inline int QuiescenceSearch(int alpha, int beta, CHESSBOARD *board, SEARC
 	return alpha;
 }
 
+int bestBeta = 0;
 
 static inline int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info, int depth)
 {
 	int legalMoves = 0;
 	int bestScore = -50000;
 	int bestMove = 0;
+	int bestLast = 0;
 	int oldAlpha = alpha;
+	
+	if(info->bestMove)
+		bestLast = info->bestMove;
 	
 	if(InCheck(board, side))
 		depth++;
@@ -980,7 +985,7 @@ static inline int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *
 	if(!depth)
 	{
 		info->nodes++;
-		return QuiescenceSearch(alpha, beta, board, info, 4);	
+		return QuiescenceSearch(alpha, beta, board, info, 4);
 	}
 	
 	MOVELIST list[1];
@@ -1002,14 +1007,17 @@ static inline int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *
 			bestScore = score;
 			bestMove = list->moves[moveNum].move;
 			
+			info->bestScore = bestScore;
+			info->bestMove = bestMove;
+			
 			if(score >= beta)
 				return beta;
-	
+				
 			if(score > alpha)
 				alpha = score;
 		}
 		
-		TakeBack(board, boardStored);
+		TakeBack(board, boardStored);	
 	}
 	
 	// checkmate/stalemate detection
@@ -1022,22 +1030,38 @@ static inline int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *
 			return 0; // on stalemate
 	}
 	
-	info->bestScore = bestScore;
-	info->bestMove = bestMove;
-			
+	if(bestMove)
+	{
+		info->bestScore = bestScore;
+		info->bestMove = bestMove;
+	}
+	
 	return alpha;
 }
 
 
 static inline void SearchPosition(CHESSBOARD *board, SEARCH *info, int depth)
 {
-	int score = NegaMaxSearch(-50000, 50000, board, info, depth);
-	
-	printf("info score cp %d depth %d nodes %ld\n", info->bestScore, depth, info->nodes);
+	int currentDepth;
+	int score;
 
-	printf("bestmove ");
-	PrintMove(info->bestMove);
-	printf("\n");
+	for(currentDepth = 1; currentDepth <= depth; currentDepth++)
+	{
+		score = NegaMaxSearch(-50000, 50000, board, info, currentDepth);
+		printf("info score cp %d depth %d nodes %ld\n", info->bestScore, currentDepth, info->nodes);
+	}
+	
+	//printf("currentDepth: %d\n", currentDepth);
+	//printf("info score cp %d depth %d nodes %ld\n", info->bestScore, depth, info->nodes);
+
+	if(info->bestMove)
+	{
+		printf("bestmove ");
+		PrintMove(info->bestMove);
+		printf("\n");
+	}
+	
+	
 }
 
  
@@ -1382,11 +1406,14 @@ int main()
 	CHESSBOARD board[1];
 	SEARCH info[1];
 	info->nodes = 0;
-	info->bestScore = -50000;
+	info->bestScore = 0;
 	info->bestMove = 0;
+	info->ply = 0;
 	
 	//ParseFen(board, initPos);
-	//SearchPosition(board, info, 3);
+	//PrintBoard(board);
+	
+	//SearchPosition(board, info, 1);
 	
 	UciLoop(board, info);
 	
