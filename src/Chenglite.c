@@ -1042,12 +1042,9 @@ static inline int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *
 
 static inline void SearchPosition(CHESSBOARD *board, SEARCH *info, int depth)
 {
-	int currentDepth;
-	int score;
-
-	for(currentDepth = 1; currentDepth <= depth; currentDepth++)
+	for(int currentDepth = 1; currentDepth <= depth; currentDepth++)
 	{
-		score = NegaMaxSearch(-50000, 50000, board, info, currentDepth);
+		NegaMaxSearch(-50000, 50000, board, info, currentDepth);
 		printf("info score cp %d depth %d nodes %ld\n", info->bestScore, currentDepth, info->nodes);
 	}
 	
