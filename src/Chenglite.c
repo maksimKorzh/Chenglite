@@ -924,21 +924,20 @@ static inline int EvaluatePosition(CHESSBOARD *board)
  **************** Search ********************
  ********************************************/
 
-static inline int QuiescenceSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info, int depth)
+static inline int QuiescenceSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info)
 {
-	if(InCheck(board, side))
-		depth++;
-
-	int score = EvaluatePosition(board);
-	int capScore = 0;
+	int eval = EvaluatePosition(board);
+	info->nodes++;
 	
-	if(!depth)
-		return score;
-	
+	if(eval >= beta)
+		return beta;
+			
+	if(eval > alpha)
+		alpha = eval;
+		
 	MOVELIST list[1];
 	GenerateMoves(board, list);
 	
-	// if there are captures in position
 	for(int moveNum = 0; moveNum < list->moveCount; ++moveNum)
 	{
 		CHESSBOARD boardStored[1];
@@ -947,48 +946,34 @@ static inline int QuiescenceSearch(int alpha, int beta, CHESSBOARD *board, SEARC
 		if(!MakeMove(board, list->moves[moveNum].move, captures))
 			continue;
 		
-		//depth++;
-		capScore = -QuiescenceSearch(-beta, -alpha, board, info, depth - 1);
-
-		if(capScore >= beta)
-			return beta;
-		
-		if(capScore > alpha)
-			alpha = capScore;
-			
+		int score = -QuiescenceSearch(-beta, -alpha, board, info);
 		TakeBack(board, boardStored);
+		
+		if(score >= beta)
+			return beta;
+			
+		if(score > alpha)
+			alpha = score;
 	}
 	
-	// if there are no captures
-	if(score > alpha)
-		alpha = score;
-
 	return alpha;
 }
 
-int bestBeta = 0;
 
 static inline int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info, int depth)
 {
-	int legalMoves = 0;
-	int bestScore = -50000;
 	int bestMove = 0;
-	int bestLast = 0;
-	int oldPly = info->ply;
-	//int oldAlpha = alpha;
+	int bestScore = -50000;
+	int legalMoves = 0;
 	
-	if(info->bestMove)
-		bestLast = info->bestMove;
-	
+	info->nodes++;
+
 	if(InCheck(board, side))
 		depth++;
 
 	if(!depth)
-	{
-		info->nodes++;
-		return QuiescenceSearch(alpha, beta, board, info, 4);
-	}
-	
+		return QuiescenceSearch(alpha, beta, board, info);
+		
 	MOVELIST list[1];
 	GenerateMoves(board, list);
 	
@@ -1002,41 +987,44 @@ static inline int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *
 		
 		legalMoves++;
 		int score = -NegaMaxSearch(-beta, -alpha, board, info, depth - 1);
+		TakeBack(board, boardStored);
 		
-		if(score > bestScore)
+		if(score >= beta)
 		{
-			bestScore = score;
-			bestMove = list->moves[moveNum].move;
-			
-			info->bestScore = bestScore;
-			info->bestMove = bestMove;
-			
-			if(score >= beta)
-				return beta;
-				
-			if(score > alpha)
-				alpha = score;	
+			return beta;
 		}
-		
-		TakeBack(board, boardStored);	
+			
+		if(score > alpha)
+		{
+			alpha = score;
+			printf("score inside: %d  alpha: %d\n", score, alpha);	
+				
+			bestScore = alpha;
+			bestMove = list->moves[moveNum].move;
+							
+			info->bestScore = alpha;
+			info->bestMove = list->moves[moveNum].move;
+			
+			// update PV
+			
+					}
 	}
 	
-	// checkmate/stalemate detection
 	if(!legalMoves)
 	{
 		if(InCheck(board, side))
+		{
+			printf("found mate at depth %d\n", depth);
 			return -100000; // on checkmate
+		}
 			
 		else
 			return 0; // on stalemate
 	}
 	
-	if(bestMove)
-	{
-		info->bestScore = bestScore;
-		info->bestMove = bestMove;
-	}
+	// update PV
 	
+	printf("return alpha\n");
 	return alpha;
 }
 
@@ -1044,18 +1032,15 @@ static inline int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *
 static inline void SearchPosition(CHESSBOARD *board, SEARCH *info, int depth)
 {
 	// iterative deepening
-	for(int currentDepth = 1; currentDepth <= depth; currentDepth++)
+	for(int currentDepth = 1; currentDepth <= 1; currentDepth++)
 	{
-		NegaMaxSearch(-50000, 50000, board, info, currentDepth);
-		printf("info score cp %d depth %d nodes %ld\n", info->bestScore, currentDepth, info->nodes);
+		int score = NegaMaxSearch(-50000, 50000, board, info, currentDepth);
+		printf("info score cp %d depth %d nodes %ld\n", score, currentDepth, info->nodes);
 	}
 	
-	if(info->bestMove)
-	{
-		printf("bestmove ");
-		PrintMove(info->bestMove);
-		printf("\n");
-	}
+	printf("bestmove ");
+	PrintMove(info->bestMove);
+	printf("\n");
 }
 
  
@@ -1404,12 +1389,12 @@ int main()
 	info->bestMove = 0;
 	info->ply = 0;
 	
-	//ParseFen(board, initPos);
-	//PrintBoard(board);
+	ParseFen(board, "8/8/8/8/8/4Q1K1/8/7k w - - 1 1 ");
+	PrintBoard(board);
 	
-	//SearchPosition(board, info, 4);
+	SearchPosition(board, info, 1);
 	
-	UciLoop(board, info);
+	//UciLoop(board, info);
 	
 	return 0;
 }
