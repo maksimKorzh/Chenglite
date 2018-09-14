@@ -1,2 +1,2 @@
 all:
-	gcc Chenglite.c -o Chenglite
+	gcc -Ofast Chenglite.c -o Chenglite

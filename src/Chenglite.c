@@ -924,7 +924,7 @@ static inline int EvaluatePosition(CHESSBOARD *board)
  **************** Search ********************
  ********************************************/
 
-static inline int QuiescenceSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info)
+int QuiescenceSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info)
 {
 	int eval = EvaluatePosition(board);
 	info->nodes++;
@@ -960,10 +960,15 @@ static inline int QuiescenceSearch(int alpha, int beta, CHESSBOARD *board, SEARC
 }
 
 
-static inline int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info, int depth)
+int pvStack[10000];
+int *pvPtr = pvStack;
+
+
+int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info, int depth)
 {
 	int bestMove = 0;
-	int bestScore = -50000;
+	int oldAlpha = alpha;
+	int score = -50000;	  
 	int legalMoves = 0;
 	
 	info->nodes++;
@@ -986,45 +991,32 @@ static inline int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *
 			continue;
 		
 		legalMoves++;
-		int score = -NegaMaxSearch(-beta, -alpha, board, info, depth - 1);
+		score = -NegaMaxSearch(-beta, -alpha, board, info, depth - 1);
 		TakeBack(board, boardStored);
 		
 		if(score >= beta)
-		{
-			return beta;
-		}
+			return beta; // fail hard beta-cutoff, mating score 100000 is cut here
 			
 		if(score > alpha)
 		{
 			alpha = score;
-			printf("score inside: %d  alpha: %d\n", score, alpha);	
-				
-			bestScore = alpha;
+			
 			bestMove = list->moves[moveNum].move;
-							
-			info->bestScore = alpha;
-			info->bestMove = list->moves[moveNum].move;
-			
-			// update PV
-			
-					}
+		}
 	}
-	
+		
 	if(!legalMoves)
 	{
 		if(InCheck(board, side))
-		{
-			printf("found mate at depth %d\n", depth);
-			return -100000; // on checkmate
-		}
+			return -49000; // on checkmate
 			
 		else
 			return 0; // on stalemate
 	}
 	
-	// update PV
+	if(alpha != oldAlpha)
+		info->bestMove = bestMove;
 	
-	printf("return alpha\n");
 	return alpha;
 }
 
@@ -1032,16 +1024,44 @@ static inline int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *
 static inline void SearchPosition(CHESSBOARD *board, SEARCH *info, int depth)
 {
 	// iterative deepening
-	for(int currentDepth = 1; currentDepth <= 1; currentDepth++)
+	for(int currentDepth = 1; currentDepth <= depth; currentDepth++)
 	{
 		int score = NegaMaxSearch(-50000, 50000, board, info, currentDepth);
 		printf("info score cp %d depth %d nodes %ld\n", score, currentDepth, info->nodes);
+		
+		if(score == 49000)
+			break;
 	}
 	
 	printf("bestmove ");
 	PrintMove(info->bestMove);
 	printf("\n");
+		
+	
 }
+
+
+/*
+	H.G.Muller's implementation of PV-table
+
+	Move pvStack[10000];
+	Move *pvPtr = pvStack;
+	
+	int Search()
+	{
+	  Move *pvStart = pvPtr; // start of own PV
+	  *pvStart = 0; // initialize empty PV at the top of the PV stack
+	  
+	  
+	  // where you increase alpha because of a better move:
+	  pvPtr = pvStart + 1;
+	  while((*pvStart++ = *pvPtr++)) ; // copy PV of daughter, including the terminating 0
+	  *pvStart = move; // the move we just searched is now the first of the new PV
+	  
+	  // when returning
+	  pvPtr = pvStart; // pop PV (but leave data in place, so daughter can pick it up)
+	}
+*/
 
  
 /********************************************
@@ -1235,7 +1255,7 @@ void UciLoop(CHESSBOARD *board, SEARCH *info)
 		else if(!strncmp(line, "position startpos", 17))
 		{
 			ParseFen(board, initPos);
-			PrintBoard(board);
+			//PrintBoard(board);
 		}
 		
 		else if(!strncmp(line, "position fen", 12))
@@ -1389,12 +1409,12 @@ int main()
 	info->bestMove = 0;
 	info->ply = 0;
 	
-	ParseFen(board, "8/8/8/8/8/4Q1K1/8/7k w - - 1 1 ");
-	PrintBoard(board);
+	//ParseFen(board, initPos);
+	//PrintBoard(board);
 	
-	SearchPosition(board, info, 1);
+	//SearchPosition(board, info, 2);
 	
-	//UciLoop(board, info);
+	UciLoop(board, info);
 	
 	return 0;
 }
