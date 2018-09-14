@@ -204,7 +204,7 @@ const int Mirror[128] =
 typedef struct { int move; int score; } MOVE;
 typedef struct { MOVE moves[256]; int moveCount; } MOVELIST;
 typedef struct { int position[128]; int side; int enPassant; int castle; int kingSq[2]; } CHESSBOARD;
-typedef struct { long nodes; int bestScore, bestMove, ply; } SEARCH;
+typedef struct { long nodes; double fhf, fh; int bestMove; int killerMove; } SEARCH;
 
 /********************************************
  ************** Square macros ***************
@@ -438,7 +438,7 @@ static inline int IsSquareAttacked(CHESSBOARD *board, int sq, int attSide)
 static inline void AddMove(MOVELIST *list, int move)
 {
 	list->moves[list->moveCount].move = move;
-	list->moves[list->moveCount].score = 0;
+	//list->moves[list->moveCount].score = 0;
 	list->moveCount++;
 }
 
@@ -924,7 +924,7 @@ static inline int EvaluatePosition(CHESSBOARD *board)
  **************** Search ********************
  ********************************************/
 
-int QuiescenceSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info)
+static int QuiescenceSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info)
 {
 	int eval = EvaluatePosition(board);
 	info->nodes++;
@@ -960,11 +960,11 @@ int QuiescenceSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info)
 }
 
 
-int pvStack[10000];
-int *pvPtr = pvStack;
+int pvTable[10];
+int *pvIndex = pvTable;
 
 
-int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info, int depth)
+static int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info, int depth)
 {
 	int bestMove = 0;
 	int oldAlpha = alpha;
@@ -982,10 +982,33 @@ int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info, int dept
 	MOVELIST list[1];
 	GenerateMoves(board, list);
 	
+	
+	
 	for(int moveNum = 0; moveNum < list->moveCount; ++moveNum)
 	{
 		CHESSBOARD boardStored[1];
 		boardStored[0] = board[0];
+		
+		// move ordering
+		if(info->bestMove)
+		{
+			for(int i = 0; i < list->moveCount; ++i)
+			{
+				// make the best move of previous iteration leftmost 
+				if(list->moves[i].move == info->bestMove)
+				{
+					list->moves[i].move = list->moves[0].move;
+					list->moves[0].move = info->bestMove;	
+				}
+			
+				// put killer move after
+				if(list->moves[i].move == info->killerMove)
+				{
+					list->moves[i].move = list->moves[1].move;
+					list->moves[1].move = info->killerMove;	
+				}
+			}
+		}
 		
 		if(!MakeMove(board, list->moves[moveNum].move, all))
 			continue;
@@ -995,10 +1018,17 @@ int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info, int dept
 		TakeBack(board, boardStored);
 		
 		if(score >= beta)
+		{
+			info->fh++;
+			info->killerMove = list->moves[moveNum].move;
 			return beta; // fail hard beta-cutoff, mating score 100000 is cut here
+		}
 			
 		if(score > alpha)
 		{
+			if(legalMoves == 1)
+				info->fhf++;
+				
 			alpha = score;
 			
 			bestMove = list->moves[moveNum].move;
@@ -1015,14 +1045,18 @@ int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info, int dept
 	}
 	
 	if(alpha != oldAlpha)
+	{
 		info->bestMove = bestMove;
+		
+		
+	}
 	
 	return alpha;
 }
 
 
 static inline void SearchPosition(CHESSBOARD *board, SEARCH *info, int depth)
-{
+{	
 	// iterative deepening
 	for(int currentDepth = 1; currentDepth <= depth; currentDepth++)
 	{
@@ -1036,8 +1070,8 @@ static inline void SearchPosition(CHESSBOARD *board, SEARCH *info, int depth)
 	printf("bestmove ");
 	PrintMove(info->bestMove);
 	printf("\n");
-		
 	
+	printf("Move ordering: %.2f\n",(info->fhf/info->fh));	
 }
 
 
@@ -1405,16 +1439,15 @@ int main()
 	CHESSBOARD board[1];
 	SEARCH info[1];
 	info->nodes = 0;
-	info->bestScore = 0;
-	info->bestMove = 0;
-	info->ply = 0;
+	info->fhf = 0;
+	info->fh = 0;
 	
-	//ParseFen(board, initPos);
-	//PrintBoard(board);
+	ParseFen(board, initPos);
+	PrintBoard(board);
 	
-	//SearchPosition(board, info, 2);
+	SearchPosition(board, info, 5);
 	
-	UciLoop(board, info);
+	//UciLoop(board, info);
 	
 	return 0;
 }
