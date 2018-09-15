@@ -990,6 +990,41 @@ static inline int EvaluatePosition(CHESSBOARD *board)
  **************** Search ********************
  ********************************************/
 
+#define SortMoves \
+for (int nextMove = moveNum + 1; nextMove < list->moveCount; ++nextMove) { \
+if (list->moves[moveNum].score < list->moves[nextMove].score) { \
+int tempScore = list->moves[moveNum].score; \
+int tempMove = list->moves[moveNum].move; \
+list->moves[moveNum].score = list->moves[nextMove].score; \
+list->moves[nextMove].score = tempScore; \
+list->moves[moveNum].move = list->moves[nextMove].move; \
+list->moves[nextMove].move = tempMove; } }
+
+
+void InitSearch(SEARCH *info)
+{
+	info->nodes = 0;
+	info->fhf = 0;
+	info->fh = 0;
+	
+	for(int i = 0; i < 15; ++i)
+	{
+		for(int j = 0; j < 128; ++j)
+		{
+			info->historyScore[i][j] = 0;
+		}
+	}
+	
+	for(int i = 0; i < 2; ++i)
+	{
+		for(int j = 0; j < 64; ++j)
+		{
+			info->killerMoves[i][j] = 0;
+		}
+	}
+}
+
+
 static int QuiescenceSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info)
 {
 	int legalMoves = 0;
@@ -1010,23 +1045,7 @@ static int QuiescenceSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info
 		CHESSBOARD boardStored[1];
 		boardStored[0] = board[0];
 		
-		/* move ordering */
-		
-		// sort moves in descending order
-		for (int nextMove = moveNum + 1; nextMove < list->moveCount; ++nextMove)
-		{
-			if (list->moves[moveNum].score < list->moves[nextMove].score)
-			{
-				int tempScore = list->moves[moveNum].score;
-				int tempMove = list->moves[moveNum].move;
-				
-				list->moves[moveNum].score = list->moves[nextMove].score;
-				list->moves[nextMove].score = tempScore;
-				
-				list->moves[moveNum].move = list->moves[nextMove].move;
-				list->moves[nextMove].move = tempMove;
-			}
-		}
+		SortMoves;
 		
 		if(!MakeMove(board, list->moves[moveNum].move, captures))
 			continue;
@@ -1077,49 +1096,10 @@ static int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info, i
 		CHESSBOARD boardStored[1];
 		boardStored[0] = board[0];
 		
-		/* move ordering */
-		
-		// sort moves in descending order
-		for (int nextMove = moveNum + 1; nextMove < list->moveCount; ++nextMove)
-		{
-			if (list->moves[moveNum].score < list->moves[nextMove].score)
-			{
-				int tempScore = list->moves[moveNum].score;
-				int tempMove = list->moves[moveNum].move;
-				
-				list->moves[moveNum].score = list->moves[nextMove].score;
-				list->moves[nextMove].score = tempScore;
-				
-				list->moves[moveNum].move = list->moves[nextMove].move;
-				list->moves[nextMove].move = tempMove;
-			}
-		}
-		
-		if(info->bestMove)
-		{
-			for(int i = 0; i < list->moveCount; ++i)
-			{
-				// make the best move of previous iteration leftmost 
-				/*if(list->moves[i].move == info->bestMove)
-				{
-					list->moves[i].move = list->moves[0].move;
-					list->moves[0].move = info->bestMove;	
-				}*/
-			
-				// put killer move after
-				/*if(list->moves[i].move == info->killerMove)
-				{
-					list->moves[i].move = list->moves[0].move;
-					list->moves[0].move = info->killerMove;	
-				}*/
-			}
-		}
+		SortMoves;
 				
 		if(!MakeMove(board, list->moves[moveNum].move, all))
 			continue;
-		
-		//PrintMoveList(list);
-		//getchar();
 		
 		legalMoves++;
 		score = -NegaMaxSearch(-beta, -alpha, board, info, depth - 1);
@@ -1138,7 +1118,7 @@ static int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info, i
 				info->killerMoves[w][ply] = list->moves[moveNum].move;
 			}
 				
-			return beta; // fail hard beta-cutoff, mating score 100000 is cut here
+			return beta; // fail hard beta-cutoff
 		}
 			
 		if(score > alpha)
@@ -1161,11 +1141,7 @@ static int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info, i
 	}
 	
 	if(alpha != oldAlpha)
-	{
 		info->bestMove = bestMove;
-		
-		
-	}
 	
 	return alpha;
 }
@@ -1545,28 +1521,6 @@ void PerftTest(CHESSBOARD *board, SEARCH *info, int depth, int moveFlag)
 	return;
 }
 
-void InitSearch(SEARCH *info)
-{
-	info->nodes = 0;
-	info->fhf = 0;
-	info->fh = 0;
-	
-	for(int i = 0; i < 15; ++i)
-	{
-		for(int j = 0; j < 128; ++j)
-		{
-			info->historyScore[i][j] = 0;
-		}
-	}
-	
-	for(int i = 0; i < 2; ++i)
-	{
-		for(int j = 0; j < 64; ++j)
-		{
-			info->killerMoves[i][j] = 0;
-		}
-	}
-}
 
 /********************************************
  **************** Chenglite *****************
@@ -1578,16 +1532,14 @@ int main()
 	SEARCH info[1];
 	InitSearch(info);
 	
-	ParseFen(board, "r1b1k2r/ppppnppp/2n2q2/2b5/3NP3/2P1B3/PP3PPP/RN1QKB1R w KQkq - 0 1");
-	PrintBoard(board);
+	//ParseFen(board, initPos/*"r1b1k2r/ppppnppp/2n2q2/2b5/3NP3/2P1B3/PP3PPP/RN1QKB1R w KQkq - 0 1"*/);
+	//PrintBoard(board);
 	
 	
+	//SearchPosition(board, info, 5);
 	
 	
-	SearchPosition(board, info, 5);
-	
-	
-	//UciLoop(board, info);
+	UciLoop(board, info);
 	
 	return 0;
 }
