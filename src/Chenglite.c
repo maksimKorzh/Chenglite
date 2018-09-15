@@ -200,6 +200,25 @@ const int Mirror[128] =
 
 #define MirrorSq(sq) Mirror[sq]
 
+static int mvv_lva[15][15] =
+{
+	0,   0,   0,   0,   0,   0,   0, 0, 0,   0,   0,   0,   0,   0,   0,
+	0, 105, 205, 305, 405, 505, 605, 0, 0, 105, 205, 305, 405, 505, 605,
+	0, 104, 204, 304, 404, 504, 604, 0, 0, 104, 204, 304, 404, 504, 604,
+	0, 103, 203, 303, 403, 503, 603, 0, 0, 103, 203, 303, 403, 503, 603,
+	0, 102, 202, 302, 402, 502, 602, 0, 0, 102, 202, 302, 402, 502, 602,
+	0, 101, 201, 301, 401, 501, 601, 0, 0, 101, 201, 301, 401, 501, 601,
+	0, 100, 200, 300, 400, 500, 600, 0, 0, 100, 200, 300, 400, 500, 600,
+	0,   0,   0,   0,   0,   0,   0, 0, 0,   0,   0,   0,   0,   0,   0,
+	0,   0,   0,   0,   0,   0,   0, 0, 0,   0,   0,   0,   0,   0,   0,
+	0, 105, 205, 305, 405, 505, 605, 0, 0, 105, 205, 305, 405, 505, 605,
+	0, 104, 204, 304, 404, 504, 604, 0, 0, 104, 204, 304, 404, 504, 604,
+	0, 103, 203, 303, 403, 503, 603, 0, 0, 103, 203, 303, 403, 503, 603,
+	0, 102, 202, 302, 402, 502, 602, 0, 0, 102, 202, 302, 402, 502, 602,
+	0, 101, 201, 301, 401, 501, 601, 0, 0, 101, 201, 301, 401, 501, 601,
+	0, 100, 200, 300, 400, 500, 600, 0, 0, 100, 200, 300, 400, 500, 600
+};
+
 // move, movelist, board, search structs
 typedef struct { int move; int score; } MOVE;
 typedef struct { MOVE moves[256]; int moveCount; } MOVELIST;
@@ -435,10 +454,28 @@ static inline int IsSquareAttacked(CHESSBOARD *board, int sq, int attSide)
 	return 0;
 }
 
-static inline void AddMove(MOVELIST *list, int move)
+/*
+
+#define GetMoveSource(move) (move & 0x7f)
+#define GetMoveTarget(move) ((move >> 7) & 0x7f)
+#define GetMovePromPiece(move) ((move >> 14) & 0xf)
+#define GetMoveCaptureFlag(move) ((move >> 18) & 1)
+#define GetMovePawnStartFlag(move) ((move >> 19) & 1)
+#define GetMoveEnPassantFlag(move) ((move >> 20) & 1)
+#define GetMoveCastleFlag(move) ((move >> 21) & 1)
+
+*/
+
+
+static inline void AddMove(CHESSBOARD *board, MOVELIST *list, int move)
 {
 	list->moves[list->moveCount].move = move;
-	//list->moves[list->moveCount].score = 0;
+	
+	if(GetMoveCaptureFlag(move))
+		list->moves[list->moveCount].score = mvv_lva[GetSq(GetMoveSource(move))][GetSq(GetMoveTarget(move))] + 10000;
+	else
+		list->moves[list->moveCount].score = 0;
+		
 	list->moveCount++;
 }
 
@@ -465,18 +502,18 @@ static inline void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 					{
 						if(rank_7 && !GetSq(fromSq + 16))
 						{
-							AddMove(list, SetMove(fromSq, fromSq + 16, wN, 0, 0, 0, 0));
-							AddMove(list, SetMove(fromSq, fromSq + 16, wB, 0, 0, 0, 0));
-							AddMove(list, SetMove(fromSq, fromSq + 16, wR, 0, 0, 0, 0));
-							AddMove(list, SetMove(fromSq, fromSq + 16, wQ, 0, 0, 0, 0));
+							AddMove(board, list, SetMove(fromSq, fromSq + 16, wN, 0, 0, 0, 0));
+							AddMove(board, list, SetMove(fromSq, fromSq + 16, wB, 0, 0, 0, 0));
+							AddMove(board, list, SetMove(fromSq, fromSq + 16, wR, 0, 0, 0, 0));
+							AddMove(board, list, SetMove(fromSq, fromSq + 16, wQ, 0, 0, 0, 0));
 						}
 					
 						else
 						{
-							AddMove(list, SetMove(fromSq, fromSq + 16, 0, 0, 0, 0, 0));
+							AddMove(board, list, SetMove(fromSq, fromSq + 16, 0, 0, 0, 0, 0));
 					
 							if(rank_2 && !GetSq(fromSq + 32))
-								AddMove(list, SetMove(fromSq, fromSq + 32, 0, 0, 1, 0, 0));
+								AddMove(board, list, SetMove(fromSq, fromSq + 32, 0, 0, 1, 0, 0));
 							
 						}
 					}
@@ -492,7 +529,7 @@ static inline void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 							if(enPassant != noSq)
 							{
 								if(dir == enPassant)
-									AddMove(list, SetMove(fromSq, dir, 0, 1, 0, 1, 0));
+									AddMove(board, list, SetMove(fromSq, dir, 0, 1, 0, 1, 0));
 							}
 						}
 					
@@ -500,16 +537,16 @@ static inline void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 						{
 							if(rank_7)
 							{
-								AddMove(list, SetMove(fromSq, dir, wN, 1, 0, 0, 0));
-								AddMove(list, SetMove(fromSq, dir, wB, 1, 0, 0, 0));
-								AddMove(list, SetMove(fromSq, dir, wR, 1, 0, 0, 0));
-								AddMove(list, SetMove(fromSq, dir, wQ, 1, 0, 0, 0));
+								AddMove(board, list, SetMove(fromSq, dir, wN, 1, 0, 0, 0));
+								AddMove(board, list, SetMove(fromSq, dir, wB, 1, 0, 0, 0));
+								AddMove(board, list, SetMove(fromSq, dir, wR, 1, 0, 0, 0));
+								AddMove(board, list, SetMove(fromSq, dir, wQ, 1, 0, 0, 0));
 							
 							}
 						
 							else
 							{
-								AddMove(list, SetMove(fromSq, dir, 0, 1, 0, 0, 0));
+								AddMove(board, list, SetMove(fromSq, dir, 0, 1, 0, 0, 0));
 							}
 						}
 					}
@@ -523,7 +560,7 @@ static inline void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 						if(!GetSq(f1) && !GetSq(g1))
 						{
 							if(!IsSquareAttacked(board, e1, b) && !IsSquareAttacked(board, f1, b))
-								AddMove(list, SetMove(e1, g1, 0, 0, 0, 0, 1));
+								AddMove(board, list, SetMove(e1, g1, 0, 0, 0, 0, 1));
 						}
 					}
 					
@@ -532,7 +569,7 @@ static inline void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 						if(!GetSq(d1) && !GetSq(c1) && !GetSq(b1))
 						{
 							if(!IsSquareAttacked(board, e1, b) && !IsSquareAttacked(board, d1, b))
-								AddMove(list, SetMove(e1, c1, 0, 0, 0, 0, 1));
+								AddMove(board, list, SetMove(e1, c1, 0, 0, 0, 0, 1));
 						}
 					}
 				}
@@ -547,18 +584,18 @@ static inline void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 					{
 						if(rank_2 && !GetSq(fromSq - 16))
 						{
-							AddMove(list, SetMove(fromSq, fromSq - 16, bN, 0, 0, 0, 0));
-							AddMove(list, SetMove(fromSq, fromSq - 16, bB, 0, 0, 0, 0));
-							AddMove(list, SetMove(fromSq, fromSq - 16, bR, 0, 0, 0, 0));
-							AddMove(list, SetMove(fromSq, fromSq - 16, bQ, 0, 0, 0, 0));
+							AddMove(board, list, SetMove(fromSq, fromSq - 16, bN, 0, 0, 0, 0));
+							AddMove(board, list, SetMove(fromSq, fromSq - 16, bB, 0, 0, 0, 0));
+							AddMove(board, list, SetMove(fromSq, fromSq - 16, bR, 0, 0, 0, 0));
+							AddMove(board, list, SetMove(fromSq, fromSq - 16, bQ, 0, 0, 0, 0));
 						}
 					
 						else
 						{
-							AddMove(list, SetMove(fromSq, fromSq - 16, 0, 0, 0, 0, 0));
+							AddMove(board, list, SetMove(fromSq, fromSq - 16, 0, 0, 0, 0, 0));
 					
 							if(rank_7 && !GetSq(fromSq - 32))
-								AddMove(list, SetMove(fromSq, fromSq - 32, 0, 0, 1, 0, 0));
+								AddMove(board, list, SetMove(fromSq, fromSq - 32, 0, 0, 1, 0, 0));
 						}
 					}
 				
@@ -573,7 +610,7 @@ static inline void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 							if(enPassant != noSq)
 							{
 								if(dir == enPassant)
-									AddMove(list, SetMove(fromSq, dir, 0, 0, 0, 1, 0));
+									AddMove(board, list, SetMove(fromSq, dir, 0, 0, 0, 1, 0));
 							}
 						}
 					
@@ -581,16 +618,16 @@ static inline void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 						{
 							if(rank_2)
 							{
-								AddMove(list, SetMove(fromSq, dir, bN, 1, 0, 0, 0));
-								AddMove(list, SetMove(fromSq, dir, bB, 1, 0, 0, 0));
-								AddMove(list, SetMove(fromSq, dir, bR, 1, 0, 0, 0));
-								AddMove(list, SetMove(fromSq, dir, bQ, 1, 0, 0, 0));
+								AddMove(board, list, SetMove(fromSq, dir, bN, 1, 0, 0, 0));
+								AddMove(board, list, SetMove(fromSq, dir, bB, 1, 0, 0, 0));
+								AddMove(board, list, SetMove(fromSq, dir, bR, 1, 0, 0, 0));
+								AddMove(board, list, SetMove(fromSq, dir, bQ, 1, 0, 0, 0));
 							
 							}
 						
 							else
 							{
-								AddMove(list, SetMove(fromSq, dir, 0, 1, 0, 0, 0));
+								AddMove(board, list, SetMove(fromSq, dir, 0, 1, 0, 0, 0));
 							}
 						}
 					}
@@ -604,7 +641,7 @@ static inline void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 						if(!GetSq(f8) && !GetSq(g8))
 						{
 							if(!IsSquareAttacked(board, e8, w) && !IsSquareAttacked(board, f8, w))
-								AddMove(list, SetMove(e8, g8, 0, 0, 0, 0, 1));
+								AddMove(board, list, SetMove(e8, g8, 0, 0, 0, 0, 1));
 						}
 					}
 				
@@ -613,7 +650,7 @@ static inline void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 						if(!GetSq(d8) && !GetSq(c8) && !GetSq(b8))
 						{
 							if(!IsSquareAttacked(board, e8, w) && !IsSquareAttacked(board, d8, w))
-								AddMove(list, SetMove(e8, c8, 0, 0, 0, 0, 1));
+								AddMove(board, list, SetMove(e8, c8, 0, 0, 0, 0, 1));
 						}
 					}
 				}
@@ -632,9 +669,9 @@ static inline void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 						if(side ? (!delta || isWhitePiece(dir)) : (!delta || isBlackPiece(dir)))
 						{
 							if(!delta)
-								AddMove(list, SetMove(fromSq, dir, 0, 0, 0, 0, 0));
+								AddMove(board, list, SetMove(fromSq, dir, 0, 0, 0, 0, 0));
 							else
-								AddMove(list, SetMove(fromSq, dir, 0, 1, 0, 0, 0));
+								AddMove(board, list, SetMove(fromSq, dir, 0, 1, 0, 0, 0));
 						}
 					}
 				}
@@ -662,14 +699,14 @@ static inline void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 						// if hits opponent's piece		
 						else if(side ? isWhitePiece(dir) : isBlackPiece(dir))
 						{
-							AddMove(list, SetMove(fromSq, dir, 0, 1, 0, 0, 0));
+							AddMove(board, list, SetMove(fromSq, dir, 0, 1, 0, 0, 0));
 							break;
 						}
 			
 						// on empty square
 						else if(!delta)
 						{		
-							AddMove(list, SetMove(fromSq, dir, 0, 0, 0, 0, 0));
+							AddMove(board, list, SetMove(fromSq, dir, 0, 0, 0, 0, 0));
 						}
 			
 						dir += bishopAttacks[i];
@@ -699,14 +736,14 @@ static inline void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 						// if hits opponent's piece
 						else if(side ? isWhitePiece(dir) : isBlackPiece(dir))
 						{
-							AddMove(list, SetMove(fromSq, dir, 0, 1, 0, 0, 0));
+							AddMove(board, list, SetMove(fromSq, dir, 0, 1, 0, 0, 0));
 							break;
 						}
 			
 						// on empty square
 						else if(!delta)
 						{		
-							AddMove(list, SetMove(fromSq, dir, 0, 0, 0, 0, 0));
+							AddMove(board, list, SetMove(fromSq, dir, 0, 0, 0, 0, 0));
 						}
 			
 						dir += rookAttacks[i];
@@ -727,9 +764,9 @@ static inline void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 						if(side ? (!delta || isWhitePiece(dir)) : (!delta || isBlackPiece(dir)))
 						{
 							if(!delta)
-								AddMove(list, SetMove(fromSq, dir, 0, 0, 0, 0, 0));
+								AddMove(board, list, SetMove(fromSq, dir, 0, 0, 0, 0, 0));
 							else
-								AddMove(list, SetMove(fromSq, dir, 0, 1, 0, 0, 0));
+								AddMove(board, list, SetMove(fromSq, dir, 0, 1, 0, 0, 0));
 						}
 					}
 				}
@@ -926,6 +963,7 @@ static inline int EvaluatePosition(CHESSBOARD *board)
 
 static int QuiescenceSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info)
 {
+	int legalMoves = 0;
 	int eval = EvaluatePosition(board);
 	info->nodes++;
 	
@@ -943,14 +981,39 @@ static int QuiescenceSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info
 		CHESSBOARD boardStored[1];
 		boardStored[0] = board[0];
 		
+		/* move ordering */
+		
+		// sort moves in descending order
+		for (int nextMove = moveNum + 1; nextMove < list->moveCount; ++nextMove)
+		{
+			if (list->moves[moveNum].score < list->moves[nextMove].score)
+			{
+				int tempScore = list->moves[moveNum].score;
+				int tempMove = list->moves[moveNum].move;
+				
+				list->moves[moveNum].score = list->moves[nextMove].score;
+				list->moves[nextMove].score = tempScore;
+				
+				list->moves[moveNum].move = list->moves[nextMove].move;
+				list->moves[nextMove].move = tempMove;
+			}
+		}
+		
 		if(!MakeMove(board, list->moves[moveNum].move, captures))
 			continue;
 		
+		legalMoves++;
 		int score = -QuiescenceSearch(-beta, -alpha, board, info);
 		TakeBack(board, boardStored);
 		
 		if(score >= beta)
+		{
+			if(legalMoves == 1)
+				info->fhf++;
+				
+			info->fh++;	
 			return beta;
+		}
 			
 		if(score > alpha)
 			alpha = score;
@@ -989,7 +1052,24 @@ static int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info, i
 		CHESSBOARD boardStored[1];
 		boardStored[0] = board[0];
 		
-		// move ordering
+		/* move ordering */
+		
+		// sort moves in descending order
+		for (int nextMove = moveNum + 1; nextMove < list->moveCount; ++nextMove)
+		{
+			if (list->moves[moveNum].score < list->moves[nextMove].score)
+			{
+				int tempScore = list->moves[moveNum].score;
+				int tempMove = list->moves[moveNum].move;
+				
+				list->moves[moveNum].score = list->moves[nextMove].score;
+				list->moves[nextMove].score = tempScore;
+				
+				list->moves[moveNum].move = list->moves[nextMove].move;
+				list->moves[nextMove].move = tempMove;
+			}
+		}
+		
 		if(info->bestMove)
 		{
 			for(int i = 0; i < list->moveCount; ++i)
@@ -1019,16 +1099,19 @@ static int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info, i
 		
 		if(score >= beta)
 		{
+			if(legalMoves == 1)
+				info->fhf++;
+				
 			info->fh++;
-			info->killerMove = list->moves[moveNum].move;
+			
+			if(!GetMoveCaptureFlag(list->moves[moveNum].move))
+				info->killerMove = list->moves[moveNum].move;
+				
 			return beta; // fail hard beta-cutoff, mating score 100000 is cut here
 		}
 			
 		if(score > alpha)
 		{
-			if(legalMoves == 1)
-				info->fhf++;
-				
 			alpha = score;
 			
 			bestMove = list->moves[moveNum].move;
@@ -1442,21 +1525,59 @@ int main()
 	info->fhf = 0;
 	info->fh = 0;
 	
-	ParseFen(board, initPos);
-	PrintBoard(board);
+	//ParseFen(board, "r1b1k2r/ppppnppp/2n2q2/2b5/3NP3/2P1B3/PP3PPP/RN1QKB1R w KQkq - 0 1");
+	//PrintBoard(board);
 	
-	SearchPosition(board, info, 5);
+	//SearchPosition(board, info, 4);
 	
-	//UciLoop(board, info);
+	/* move ordering */
+	
+	/*
+	// sort moves in descending order
+	for (int i = 0; i < list->moveCount; ++i)
+	{
+		for (int j = i + 1; j < list->moveCount; ++j)
+		{
+			if (list->moves[i].score < list->moves[j].score)
+			{
+				int tempScore = list->moves[i].score;
+				int tempMove = list->moves[i].move;
+				
+				list->moves[i].score = list->moves[j].score;
+				list->moves[j].score = tempScore;
+				
+				list->moves[i].move = list->moves[j].move;
+				list->moves[j].move = tempMove;
+			}
+		}
+	}
+	*/
+
+
+	UciLoop(board, info);
 	
 	return 0;
 }
 
+/*
+	mvv_lva[row][col]  [attacker][victim]
+	0,   0,   0,   0,   0,   0,   0, 0, 0,   0,   0,   0,   0,   0,   0,
+	0, 105, 205, 305, 405, 505, 605, 0, 0, 105, 205, 305, 405, 505, 605,
+	0, 104, 204, 304, 404, 504, 604, 0, 0, 104, 204, 304, 404, 504, 604,
+	0, 103, 203, 303, 403, 503, 603, 0, 0, 103, 203, 303, 403, 503, 603,
+	0, 102, 202, 302, 402, 502, 602, 0, 0, 102, 202, 302, 402, 502, 602,
+	0, 101, 201, 301, 401, 501, 601, 0, 0, 101, 201, 301, 401, 501, 601,
+	0, 100, 200, 300, 400, 500, 600, 0, 0, 100, 200, 300, 400, 500, 600,
+	0,   0,   0,   0,   0,   0,   0, 0, 0,   0,   0,   0,   0,   0,   0,
+	0,   0,   0,   0,   0,   0,   0, 0, 0,   0,   0,   0,   0,   0,   0,
+	0, 105, 205, 305, 405, 505, 605, 0, 0, 105, 205, 305, 405, 505, 605,
+	0, 104, 204, 304, 404, 504, 604, 0, 0, 104, 204, 304, 404, 504, 604,
+	0, 103, 203, 303, 403, 503, 603, 0, 0, 103, 203, 303, 403, 503, 603,
+	0, 102, 202, 302, 402, 502, 602, 0, 0, 102, 202, 302, 402, 502, 602,
+	0, 101, 201, 301, 401, 501, 601, 0, 0, 101, 201, 301, 401, 501, 601,
+	0, 100, 200, 300, 400, 500, 600, 0, 0, 100, 200, 300, 400, 500, 600
 
-
-
-
-
+*/
 
 
 
