@@ -1436,7 +1436,7 @@ void UciLoop(CHESSBOARD *board, SEARCH *info)
 			break;
 			
 		else
-			SearchPosition(board, info, 4);
+			SearchPosition(board, info, 5);
 	}
 }
 

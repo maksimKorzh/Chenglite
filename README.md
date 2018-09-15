@@ -3,7 +3,7 @@ Minimalist UCI chess engine written by self learner from scratch
 for linux only(for now)
 
 # Current development state
-Debugging search
+implementing PV-table
 
 # Features
 
