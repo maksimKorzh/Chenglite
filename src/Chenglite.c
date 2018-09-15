@@ -222,8 +222,36 @@ static int mvv_lva[15][15] =
 // move, movelist, board, search structs
 typedef struct { int move; int score; } MOVE;
 typedef struct { MOVE moves[256]; int moveCount; } MOVELIST;
-typedef struct { int position[128]; int side; int enPassant; int castle; int kingSq[2]; } CHESSBOARD;
-typedef struct { long nodes; double fhf, fh; int bestMove; int killerMove; } SEARCH;
+
+typedef struct
+{ 
+	int position[128]; 
+
+	int side; 
+	int enPassant; 
+	int castle; 
+
+	int kingSq[2];
+	
+	int ply;
+}
+
+CHESSBOARD;
+
+
+typedef struct
+{
+	long nodes;
+	double fhf, fh;
+	
+	int bestMove;
+	int pvTable[64];
+	
+	int historyScore[15][128];
+	int killerMoves[2][64];
+}
+
+SEARCH;
 
 /********************************************
  ************** Square macros ***************
@@ -266,6 +294,7 @@ typedef struct { long nodes; double fhf, fh; int bestMove; int killerMove; } SEA
 #define enPassant	board->enPassant
 #define castle		board->castle
 #define kingSq(col)	board->kingSq[col]
+#define ply			board->ply
 
 // Board loops
 #define LoopBoard for(int sq = 0; sq < 128; ++sq)
@@ -285,7 +314,7 @@ typedef struct { long nodes; double fhf, fh; int bestMove; int killerMove; } SEA
 	LoopBoard { IsOnBoard(sq) ? SetSq(sq, emSq) : SetSq(sq, offBoard); }
 
 #define ResetStats(board) \
-	side = 0; enPassant = noSq; castle = 0
+	side = 0; enPassant = noSq; castle = 0; ply = 0;
 	
 #define ResetBoard(board) \
 	ResetPosition(board); ResetStats(board)
@@ -454,32 +483,30 @@ static inline int IsSquareAttacked(CHESSBOARD *board, int sq, int attSide)
 	return 0;
 }
 
-/*
 
-#define GetMoveSource(move) (move & 0x7f)
-#define GetMoveTarget(move) ((move >> 7) & 0x7f)
-#define GetMovePromPiece(move) ((move >> 14) & 0xf)
-#define GetMoveCaptureFlag(move) ((move >> 18) & 1)
-#define GetMovePawnStartFlag(move) ((move >> 19) & 1)
-#define GetMoveEnPassantFlag(move) ((move >> 20) & 1)
-#define GetMoveCastleFlag(move) ((move >> 21) & 1)
-
-*/
-
-
-static inline void AddMove(CHESSBOARD *board, MOVELIST *list, int move)
+static inline void AddMove(CHESSBOARD *board, SEARCH *info, MOVELIST *list, int move)
 {
 	list->moves[list->moveCount].move = move;
 	
 	if(GetMoveCaptureFlag(move))
 		list->moves[list->moveCount].score = mvv_lva[GetSq(GetMoveSource(move))][GetSq(GetMoveTarget(move))] + 10000;
-	else
-		list->moves[list->moveCount].score = 0;
+	
+	if(!GetMoveCaptureFlag(move))
+	{
+		if(info->killerMoves[w][ply] == move)
+			list->moves[list->moveCount].score = 9000;
+	
+		else if(info->killerMoves[b][ply] == move)
+			list->moves[list->moveCount].score = 8000;
+		
+		else
+			list->moves[list->moveCount].score = info->historyScore[GetSq(GetMoveSource(move))][GetMoveTarget(move)];
+	}
 		
 	list->moveCount++;
 }
 
-static inline void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
+static inline void GenerateMoves(CHESSBOARD *board, SEARCH *info, MOVELIST *list)
 {	
 	list->moveCount = 0;
 	
@@ -502,18 +529,18 @@ static inline void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 					{
 						if(rank_7 && !GetSq(fromSq + 16))
 						{
-							AddMove(board, list, SetMove(fromSq, fromSq + 16, wN, 0, 0, 0, 0));
-							AddMove(board, list, SetMove(fromSq, fromSq + 16, wB, 0, 0, 0, 0));
-							AddMove(board, list, SetMove(fromSq, fromSq + 16, wR, 0, 0, 0, 0));
-							AddMove(board, list, SetMove(fromSq, fromSq + 16, wQ, 0, 0, 0, 0));
+							AddMove(board, info, list, SetMove(fromSq, fromSq + 16, wN, 0, 0, 0, 0));
+							AddMove(board, info, list, SetMove(fromSq, fromSq + 16, wB, 0, 0, 0, 0));
+							AddMove(board, info, list, SetMove(fromSq, fromSq + 16, wR, 0, 0, 0, 0));
+							AddMove(board, info, list, SetMove(fromSq, fromSq + 16, wQ, 0, 0, 0, 0));
 						}
 					
 						else
 						{
-							AddMove(board, list, SetMove(fromSq, fromSq + 16, 0, 0, 0, 0, 0));
+							AddMove(board, info, list, SetMove(fromSq, fromSq + 16, 0, 0, 0, 0, 0));
 					
 							if(rank_2 && !GetSq(fromSq + 32))
-								AddMove(board, list, SetMove(fromSq, fromSq + 32, 0, 0, 1, 0, 0));
+								AddMove(board, info, list, SetMove(fromSq, fromSq + 32, 0, 0, 1, 0, 0));
 							
 						}
 					}
@@ -529,7 +556,7 @@ static inline void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 							if(enPassant != noSq)
 							{
 								if(dir == enPassant)
-									AddMove(board, list, SetMove(fromSq, dir, 0, 1, 0, 1, 0));
+									AddMove(board, info, list, SetMove(fromSq, dir, 0, 1, 0, 1, 0));
 							}
 						}
 					
@@ -537,16 +564,16 @@ static inline void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 						{
 							if(rank_7)
 							{
-								AddMove(board, list, SetMove(fromSq, dir, wN, 1, 0, 0, 0));
-								AddMove(board, list, SetMove(fromSq, dir, wB, 1, 0, 0, 0));
-								AddMove(board, list, SetMove(fromSq, dir, wR, 1, 0, 0, 0));
-								AddMove(board, list, SetMove(fromSq, dir, wQ, 1, 0, 0, 0));
+								AddMove(board, info, list, SetMove(fromSq, dir, wN, 1, 0, 0, 0));
+								AddMove(board, info, list, SetMove(fromSq, dir, wB, 1, 0, 0, 0));
+								AddMove(board, info, list, SetMove(fromSq, dir, wR, 1, 0, 0, 0));
+								AddMove(board, info, list, SetMove(fromSq, dir, wQ, 1, 0, 0, 0));
 							
 							}
 						
 							else
 							{
-								AddMove(board, list, SetMove(fromSq, dir, 0, 1, 0, 0, 0));
+								AddMove(board, info, list, SetMove(fromSq, dir, 0, 1, 0, 0, 0));
 							}
 						}
 					}
@@ -560,7 +587,7 @@ static inline void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 						if(!GetSq(f1) && !GetSq(g1))
 						{
 							if(!IsSquareAttacked(board, e1, b) && !IsSquareAttacked(board, f1, b))
-								AddMove(board, list, SetMove(e1, g1, 0, 0, 0, 0, 1));
+								AddMove(board, info, list, SetMove(e1, g1, 0, 0, 0, 0, 1));
 						}
 					}
 					
@@ -569,7 +596,7 @@ static inline void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 						if(!GetSq(d1) && !GetSq(c1) && !GetSq(b1))
 						{
 							if(!IsSquareAttacked(board, e1, b) && !IsSquareAttacked(board, d1, b))
-								AddMove(board, list, SetMove(e1, c1, 0, 0, 0, 0, 1));
+								AddMove(board, info, list, SetMove(e1, c1, 0, 0, 0, 0, 1));
 						}
 					}
 				}
@@ -584,18 +611,18 @@ static inline void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 					{
 						if(rank_2 && !GetSq(fromSq - 16))
 						{
-							AddMove(board, list, SetMove(fromSq, fromSq - 16, bN, 0, 0, 0, 0));
-							AddMove(board, list, SetMove(fromSq, fromSq - 16, bB, 0, 0, 0, 0));
-							AddMove(board, list, SetMove(fromSq, fromSq - 16, bR, 0, 0, 0, 0));
-							AddMove(board, list, SetMove(fromSq, fromSq - 16, bQ, 0, 0, 0, 0));
+							AddMove(board, info, list, SetMove(fromSq, fromSq - 16, bN, 0, 0, 0, 0));
+							AddMove(board, info, list, SetMove(fromSq, fromSq - 16, bB, 0, 0, 0, 0));
+							AddMove(board, info, list, SetMove(fromSq, fromSq - 16, bR, 0, 0, 0, 0));
+							AddMove(board, info, list, SetMove(fromSq, fromSq - 16, bQ, 0, 0, 0, 0));
 						}
 					
 						else
 						{
-							AddMove(board, list, SetMove(fromSq, fromSq - 16, 0, 0, 0, 0, 0));
+							AddMove(board, info, list, SetMove(fromSq, fromSq - 16, 0, 0, 0, 0, 0));
 					
 							if(rank_7 && !GetSq(fromSq - 32))
-								AddMove(board, list, SetMove(fromSq, fromSq - 32, 0, 0, 1, 0, 0));
+								AddMove(board, info, list, SetMove(fromSq, fromSq - 32, 0, 0, 1, 0, 0));
 						}
 					}
 				
@@ -610,7 +637,7 @@ static inline void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 							if(enPassant != noSq)
 							{
 								if(dir == enPassant)
-									AddMove(board, list, SetMove(fromSq, dir, 0, 0, 0, 1, 0));
+									AddMove(board, info, list, SetMove(fromSq, dir, 0, 0, 0, 1, 0));
 							}
 						}
 					
@@ -618,16 +645,16 @@ static inline void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 						{
 							if(rank_2)
 							{
-								AddMove(board, list, SetMove(fromSq, dir, bN, 1, 0, 0, 0));
-								AddMove(board, list, SetMove(fromSq, dir, bB, 1, 0, 0, 0));
-								AddMove(board, list, SetMove(fromSq, dir, bR, 1, 0, 0, 0));
-								AddMove(board, list, SetMove(fromSq, dir, bQ, 1, 0, 0, 0));
+								AddMove(board, info, list, SetMove(fromSq, dir, bN, 1, 0, 0, 0));
+								AddMove(board, info, list, SetMove(fromSq, dir, bB, 1, 0, 0, 0));
+								AddMove(board, info, list, SetMove(fromSq, dir, bR, 1, 0, 0, 0));
+								AddMove(board, info, list, SetMove(fromSq, dir, bQ, 1, 0, 0, 0));
 							
 							}
 						
 							else
 							{
-								AddMove(board, list, SetMove(fromSq, dir, 0, 1, 0, 0, 0));
+								AddMove(board, info, list, SetMove(fromSq, dir, 0, 1, 0, 0, 0));
 							}
 						}
 					}
@@ -641,7 +668,7 @@ static inline void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 						if(!GetSq(f8) && !GetSq(g8))
 						{
 							if(!IsSquareAttacked(board, e8, w) && !IsSquareAttacked(board, f8, w))
-								AddMove(board, list, SetMove(e8, g8, 0, 0, 0, 0, 1));
+								AddMove(board, info, list, SetMove(e8, g8, 0, 0, 0, 0, 1));
 						}
 					}
 				
@@ -650,7 +677,7 @@ static inline void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 						if(!GetSq(d8) && !GetSq(c8) && !GetSq(b8))
 						{
 							if(!IsSquareAttacked(board, e8, w) && !IsSquareAttacked(board, d8, w))
-								AddMove(board, list, SetMove(e8, c8, 0, 0, 0, 0, 1));
+								AddMove(board, info, list, SetMove(e8, c8, 0, 0, 0, 0, 1));
 						}
 					}
 				}
@@ -669,9 +696,9 @@ static inline void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 						if(side ? (!delta || isWhitePiece(dir)) : (!delta || isBlackPiece(dir)))
 						{
 							if(!delta)
-								AddMove(board, list, SetMove(fromSq, dir, 0, 0, 0, 0, 0));
+								AddMove(board, info, list, SetMove(fromSq, dir, 0, 0, 0, 0, 0));
 							else
-								AddMove(board, list, SetMove(fromSq, dir, 0, 1, 0, 0, 0));
+								AddMove(board, info, list, SetMove(fromSq, dir, 0, 1, 0, 0, 0));
 						}
 					}
 				}
@@ -699,14 +726,14 @@ static inline void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 						// if hits opponent's piece		
 						else if(side ? isWhitePiece(dir) : isBlackPiece(dir))
 						{
-							AddMove(board, list, SetMove(fromSq, dir, 0, 1, 0, 0, 0));
+							AddMove(board, info, list, SetMove(fromSq, dir, 0, 1, 0, 0, 0));
 							break;
 						}
 			
 						// on empty square
 						else if(!delta)
 						{		
-							AddMove(board, list, SetMove(fromSq, dir, 0, 0, 0, 0, 0));
+							AddMove(board, info, list, SetMove(fromSq, dir, 0, 0, 0, 0, 0));
 						}
 			
 						dir += bishopAttacks[i];
@@ -736,14 +763,14 @@ static inline void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 						// if hits opponent's piece
 						else if(side ? isWhitePiece(dir) : isBlackPiece(dir))
 						{
-							AddMove(board, list, SetMove(fromSq, dir, 0, 1, 0, 0, 0));
+							AddMove(board, info, list, SetMove(fromSq, dir, 0, 1, 0, 0, 0));
 							break;
 						}
 			
 						// on empty square
 						else if(!delta)
 						{		
-							AddMove(board, list, SetMove(fromSq, dir, 0, 0, 0, 0, 0));
+							AddMove(board, info, list, SetMove(fromSq, dir, 0, 0, 0, 0, 0));
 						}
 			
 						dir += rookAttacks[i];
@@ -764,9 +791,9 @@ static inline void GenerateMoves(CHESSBOARD *board, MOVELIST *list)
 						if(side ? (!delta || isWhitePiece(dir)) : (!delta || isBlackPiece(dir)))
 						{
 							if(!delta)
-								AddMove(board, list, SetMove(fromSq, dir, 0, 0, 0, 0, 0));
+								AddMove(board, info, list, SetMove(fromSq, dir, 0, 0, 0, 0, 0));
 							else
-								AddMove(board, list, SetMove(fromSq, dir, 0, 1, 0, 0, 0));
+								AddMove(board, info, list, SetMove(fromSq, dir, 0, 1, 0, 0, 0));
 						}
 					}
 				}
@@ -790,6 +817,8 @@ static inline int MakeMove(CHESSBOARD *board, int move, int capFlag)
 
 	if(!capFlag)
 	{
+		ply++;
+	
 		CHESSBOARD boardStored[1];
 		boardStored[0] = board[0];
 
@@ -974,7 +1003,7 @@ static int QuiescenceSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info
 		alpha = eval;
 		
 	MOVELIST list[1];
-	GenerateMoves(board, list);
+	GenerateMoves(board, info, list);
 	
 	for(int moveNum = 0; moveNum < list->moveCount; ++moveNum)
 	{
@@ -1023,10 +1052,6 @@ static int QuiescenceSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info
 }
 
 
-int pvTable[10];
-int *pvIndex = pvTable;
-
-
 static int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info, int depth)
 {
 	int bestMove = 0;
@@ -1043,7 +1068,7 @@ static int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info, i
 		return QuiescenceSearch(alpha, beta, board, info);
 		
 	MOVELIST list[1];
-	GenerateMoves(board, list);
+	GenerateMoves(board, info, list);
 	
 	
 	
@@ -1075,23 +1100,26 @@ static int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info, i
 			for(int i = 0; i < list->moveCount; ++i)
 			{
 				// make the best move of previous iteration leftmost 
-				if(list->moves[i].move == info->bestMove)
+				/*if(list->moves[i].move == info->bestMove)
 				{
 					list->moves[i].move = list->moves[0].move;
 					list->moves[0].move = info->bestMove;	
-				}
+				}*/
 			
 				// put killer move after
-				if(list->moves[i].move == info->killerMove)
+				/*if(list->moves[i].move == info->killerMove)
 				{
-					list->moves[i].move = list->moves[1].move;
-					list->moves[1].move = info->killerMove;	
-				}
+					list->moves[i].move = list->moves[0].move;
+					list->moves[0].move = info->killerMove;	
+				}*/
 			}
 		}
-		
+				
 		if(!MakeMove(board, list->moves[moveNum].move, all))
 			continue;
+		
+		//PrintMoveList(list);
+		//getchar();
 		
 		legalMoves++;
 		score = -NegaMaxSearch(-beta, -alpha, board, info, depth - 1);
@@ -1105,16 +1133,21 @@ static int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info, i
 			info->fh++;
 			
 			if(!GetMoveCaptureFlag(list->moves[moveNum].move))
-				info->killerMove = list->moves[moveNum].move;
+			{
+				info->killerMoves[b][ply] = info->killerMoves[w][ply];
+				info->killerMoves[w][ply] = list->moves[moveNum].move;
+			}
 				
 			return beta; // fail hard beta-cutoff, mating score 100000 is cut here
 		}
 			
 		if(score > alpha)
 		{
-			alpha = score;
-			
+			alpha = score;			
 			bestMove = list->moves[moveNum].move;
+			
+			if(!(GetMoveCaptureFlag(list->moves[moveNum].move)))
+				info->historyScore[GetSq(GetMoveSource(bestMove))][GetMoveTarget(bestMove)] += depth;
 		}
 	}
 		
@@ -1257,10 +1290,10 @@ void ParseFen(CHESSBOARD *board, char *fen)
 	}
 }
 
-int ParseMove(CHESSBOARD *board, char *moveStr)
+int ParseMove(CHESSBOARD *board, SEARCH *info, char *moveStr)
 {
 	MOVELIST list[1];
-	GenerateMoves(board, list);
+	GenerateMoves(board, info, list);
 
 	int parseFrom = (moveStr[0] - 'a') + (moveStr[1] - '0' - 1) * 16;
 	int parseTo = (moveStr[2] - 'a') + (moveStr[3] - '0' - 1) * 16;
@@ -1360,7 +1393,7 @@ void UciLoop(CHESSBOARD *board, SEARCH *info)
 				if(*moves == ' ')
 				{
 					*moves++;
-					MakeMove(board, ParseMove(board, moves), all);
+					MakeMove(board, ParseMove(board, info, moves), all);
 				}
 				
 				*moves++;
@@ -1403,7 +1436,7 @@ void UciLoop(CHESSBOARD *board, SEARCH *info)
 					if(*moves == ' ')
 					{
 						*moves++;
-						MakeMove(board, ParseMove(board, moves), all);
+						MakeMove(board, ParseMove(board, info, moves), all);
 					}
 				
 					*moves++;
@@ -1445,7 +1478,7 @@ int GetTimeMs()
 	return t.tv_sec*1000 + t.tv_usec/1000;
 }
 
-static void Perft(CHESSBOARD *board, int depth, int moveFlag)
+static void Perft(CHESSBOARD *board, SEARCH *info, int depth, int moveFlag)
 {
 	if(depth == 0)
 	{
@@ -1454,7 +1487,7 @@ static void Perft(CHESSBOARD *board, int depth, int moveFlag)
 	}
 	
 	MOVELIST list[1];
-	GenerateMoves(board, list);
+	GenerateMoves(board, info, list);
 	
 	for(int moveNum = 0; moveNum < list->moveCount; ++moveNum)
 	{
@@ -1464,13 +1497,13 @@ static void Perft(CHESSBOARD *board, int depth, int moveFlag)
 		if(!MakeMove(board, list->moves[moveNum].move, moveFlag))
 			continue;
 			
-		Perft(board, depth - 1, moveFlag);
+		Perft(board, info, depth - 1, moveFlag);
 		TakeBack(board, boardStored);
 	}
 }
 
 
-void PerftTest(CHESSBOARD *board, int depth, int moveFlag)
+void PerftTest(CHESSBOARD *board, SEARCH *info, int depth, int moveFlag)
 {
 	PrintBoard(board);
 	
@@ -1481,7 +1514,7 @@ void PerftTest(CHESSBOARD *board, int depth, int moveFlag)
 	int start = GetTimeMs();
 	
 	MOVELIST list[1];
-	GenerateMoves(board, list);
+	GenerateMoves(board, info, list);
 	
 	int move;
 	
@@ -1497,7 +1530,7 @@ void PerftTest(CHESSBOARD *board, int depth, int moveFlag)
 		
 		long cumnodes = nodes;
 		
-		Perft(board, depth - 1, moveFlag);
+		Perft(board, info, depth - 1, moveFlag);
 		TakeBack(board, boardStored);
 		
 		long oldnodes = nodes - cumnodes;
@@ -1512,6 +1545,28 @@ void PerftTest(CHESSBOARD *board, int depth, int moveFlag)
 	return;
 }
 
+void InitSearch(SEARCH *info)
+{
+	info->nodes = 0;
+	info->fhf = 0;
+	info->fh = 0;
+	
+	for(int i = 0; i < 15; ++i)
+	{
+		for(int j = 0; j < 128; ++j)
+		{
+			info->historyScore[i][j] = 0;
+		}
+	}
+	
+	for(int i = 0; i < 2; ++i)
+	{
+		for(int j = 0; j < 64; ++j)
+		{
+			info->killerMoves[i][j] = 0;
+		}
+	}
+}
 
 /********************************************
  **************** Chenglite *****************
@@ -1521,66 +1576,21 @@ int main()
 {
 	CHESSBOARD board[1];
 	SEARCH info[1];
-	info->nodes = 0;
-	info->fhf = 0;
-	info->fh = 0;
+	InitSearch(info);
 	
-	//ParseFen(board, "r1b1k2r/ppppnppp/2n2q2/2b5/3NP3/2P1B3/PP3PPP/RN1QKB1R w KQkq - 0 1");
-	//PrintBoard(board);
+	ParseFen(board, "r1b1k2r/ppppnppp/2n2q2/2b5/3NP3/2P1B3/PP3PPP/RN1QKB1R w KQkq - 0 1");
+	PrintBoard(board);
 	
-	//SearchPosition(board, info, 4);
 	
-	/* move ordering */
 	
-	/*
-	// sort moves in descending order
-	for (int i = 0; i < list->moveCount; ++i)
-	{
-		for (int j = i + 1; j < list->moveCount; ++j)
-		{
-			if (list->moves[i].score < list->moves[j].score)
-			{
-				int tempScore = list->moves[i].score;
-				int tempMove = list->moves[i].move;
-				
-				list->moves[i].score = list->moves[j].score;
-				list->moves[j].score = tempScore;
-				
-				list->moves[i].move = list->moves[j].move;
-				list->moves[j].move = tempMove;
-			}
-		}
-	}
-	*/
-
-
-	UciLoop(board, info);
+	
+	SearchPosition(board, info, 5);
+	
+	
+	//UciLoop(board, info);
 	
 	return 0;
 }
-
-/*
-	mvv_lva[row][col]  [attacker][victim]
-	0,   0,   0,   0,   0,   0,   0, 0, 0,   0,   0,   0,   0,   0,   0,
-	0, 105, 205, 305, 405, 505, 605, 0, 0, 105, 205, 305, 405, 505, 605,
-	0, 104, 204, 304, 404, 504, 604, 0, 0, 104, 204, 304, 404, 504, 604,
-	0, 103, 203, 303, 403, 503, 603, 0, 0, 103, 203, 303, 403, 503, 603,
-	0, 102, 202, 302, 402, 502, 602, 0, 0, 102, 202, 302, 402, 502, 602,
-	0, 101, 201, 301, 401, 501, 601, 0, 0, 101, 201, 301, 401, 501, 601,
-	0, 100, 200, 300, 400, 500, 600, 0, 0, 100, 200, 300, 400, 500, 600,
-	0,   0,   0,   0,   0,   0,   0, 0, 0,   0,   0,   0,   0,   0,   0,
-	0,   0,   0,   0,   0,   0,   0, 0, 0,   0,   0,   0,   0,   0,   0,
-	0, 105, 205, 305, 405, 505, 605, 0, 0, 105, 205, 305, 405, 505, 605,
-	0, 104, 204, 304, 404, 504, 604, 0, 0, 104, 204, 304, 404, 504, 604,
-	0, 103, 203, 303, 403, 503, 603, 0, 0, 103, 203, 303, 403, 503, 603,
-	0, 102, 202, 302, 402, 502, 602, 0, 0, 102, 202, 302, 402, 502, 602,
-	0, 101, 201, 301, 401, 501, 601, 0, 0, 101, 201, 301, 401, 501, 601,
-	0, 100, 200, 300, 400, 500, 600, 0, 0, 100, 200, 300, 400, 500, 600
-
-*/
-
-
-
 
 
 
