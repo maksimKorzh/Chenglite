@@ -13,8 +13,9 @@ implementing PV-table
 	- material and piece placement evaluation
 	- iterative deepening
 	- nega max search algorithm
-	- fixed depth quiescence search
+	- quiescence search
 	- alpha beta pruning
+	- move ordering(MVV_LVA for captures, search history, killerMoves)
 	- UCI protocol with depth search only
 
 
