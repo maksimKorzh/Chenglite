@@ -245,7 +245,9 @@ typedef struct
 	double fhf, fh;
 	
 	int bestMove;
-	int pvTable[64];
+	
+	int pvTable[64][64];
+	int pvLength[64];
 	
 	int historyScore[15][128];
 	int killerMoves[2][64];
@@ -370,7 +372,7 @@ SEARCH;
 #define GetMoveCastleFlag(move) ((move >> 21) & 1)
 
 #define PrintMove(move) \
-	printf("  "); \
+	printf(" "); \
 	PrintSquare(GetMoveSource(move)); \
 	PrintSquare(GetMoveTarget(move)); \
 	PrintPromotedPiece(GetMovePromPiece(move)); \
@@ -487,18 +489,21 @@ static inline int IsSquareAttacked(CHESSBOARD *board, int sq, int attSide)
 static inline void AddMove(CHESSBOARD *board, SEARCH *info, MOVELIST *list, int move)
 {
 	list->moves[list->moveCount].move = move;
-	
+		
+	// order captures in MVV_LVA order
 	if(GetMoveCaptureFlag(move))
 		list->moves[list->moveCount].score = mvv_lva[GetSq(GetMoveSource(move))][GetSq(GetMoveTarget(move))] + 10000;
 	
 	if(!GetMoveCaptureFlag(move))
 	{
+		// order killer moves
 		if(info->killerMoves[w][ply] == move)
 			list->moves[list->moveCount].score = 9000;
 	
 		else if(info->killerMoves[b][ply] == move)
 			list->moves[list->moveCount].score = 8000;
 		
+		// order history moves
 		else
 			list->moves[list->moveCount].score = info->historyScore[GetSq(GetMoveSource(move))][GetMoveTarget(move)];
 	}
@@ -998,7 +1003,7 @@ int tempMove = list->moves[moveNum].move; \
 list->moves[moveNum].score = list->moves[nextMove].score; \
 list->moves[nextMove].score = tempScore; \
 list->moves[moveNum].move = list->moves[nextMove].move; \
-list->moves[nextMove].move = tempMove; } }
+list->moves[nextMove].move = tempMove; } } \
 
 
 void InitSearch(SEARCH *info)
@@ -1022,6 +1027,17 @@ void InitSearch(SEARCH *info)
 			info->killerMoves[i][j] = 0;
 		}
 	}
+	
+	for(int i = 0; i < 64; ++i)
+	{
+		for(int j = 0; j < 64; ++j)
+		{
+			info->pvTable[i][j] = 0;
+		}
+	}
+	
+	for(int i = 0; i < 64; ++i)
+		info->pvLength[i] = 0;
 }
 
 
@@ -1078,6 +1094,7 @@ static int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info, i
 	int score = -50000;	  
 	int legalMoves = 0;
 	
+	info->pvLength[ply] = ply;
 	info->nodes++;
 
 	if(InCheck(board, side))
@@ -1089,12 +1106,17 @@ static int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info, i
 	MOVELIST list[1];
 	GenerateMoves(board, info, list);
 	
-	
-	
 	for(int moveNum = 0; moveNum < list->moveCount; ++moveNum)
 	{
 		CHESSBOARD boardStored[1];
 		boardStored[0] = board[0];
+		
+		// order PV move
+		for(int i = 0; i < list->moveCount; ++i)
+		{
+			if(list->moves[i].move == info->bestMove)
+				list->moves[i].score = 20000;
+		}
 		
 		SortMoves;
 				
@@ -1117,7 +1139,7 @@ static int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info, i
 				info->killerMoves[b][ply] = info->killerMoves[w][ply];
 				info->killerMoves[w][ply] = list->moves[moveNum].move;
 			}
-				
+			
 			return beta; // fail hard beta-cutoff
 		}
 			
@@ -1125,9 +1147,17 @@ static int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info, i
 		{
 			alpha = score;			
 			bestMove = list->moves[moveNum].move;
-			
+
 			if(!(GetMoveCaptureFlag(list->moves[moveNum].move)))
 				info->historyScore[GetSq(GetMoveSource(bestMove))][GetMoveTarget(bestMove)] += depth;
+			
+			// update PV
+			info->pvTable[ply][ply] = bestMove;
+			
+			for (int i = ply + 1; i < info->pvLength[ply + 1]; ++i)
+				info->pvTable[ply][i] = info->pvTable[ply + 1][i];
+				
+			info->pvLength[ply] = info->pvLength[ply + 1];
 		}
 	}
 		
@@ -1141,53 +1171,41 @@ static int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info, i
 	}
 	
 	if(alpha != oldAlpha)
+	{
 		info->bestMove = bestMove;
+	}
 	
 	return alpha;
 }
 
 
 static inline void SearchPosition(CHESSBOARD *board, SEARCH *info, int depth)
-{	
+{depth = 5;
 	// iterative deepening
 	for(int currentDepth = 1; currentDepth <= depth; currentDepth++)
 	{
 		int score = NegaMaxSearch(-50000, 50000, board, info, currentDepth);
-		printf("info score cp %d depth %d nodes %ld\n", score, currentDepth, info->nodes);
+		printf("info score cp %d depth %d nodes %ld pv", score, currentDepth, info->nodes);
 		
 		if(score == 49000)
 			break;
+			
+		for (int i = 0; i < info->pvLength[0]; ++i)
+		{
+			PrintMove(info->pvTable[0][i]);
+		}
+	
+		printf("\n");
 	}
 	
 	printf("bestmove ");
-	PrintMove(info->bestMove);
+	PrintMove(info->pvTable[0][0]);
 	printf("\n");
 	
-	printf("Move ordering: %.2f\n",(info->fhf/info->fh));	
-}
-
-
-/*
-	H.G.Muller's implementation of PV-table
-
-	Move pvStack[10000];
-	Move *pvPtr = pvStack;
+	printf("Move ordering: %.2f\n",(info->fhf/info->fh));
 	
-	int Search()
-	{
-	  Move *pvStart = pvPtr; // start of own PV
-	  *pvStart = 0; // initialize empty PV at the top of the PV stack
-	  
-	  
-	  // where you increase alpha because of a better move:
-	  pvPtr = pvStart + 1;
-	  while((*pvStart++ = *pvPtr++)) ; // copy PV of daughter, including the terminating 0
-	  *pvStart = move; // the move we just searched is now the first of the new PV
-	  
-	  // when returning
-	  pvPtr = pvStart; // pop PV (but leave data in place, so daughter can pick it up)
-	}
-*/
+	
+}
 
  
 /********************************************
@@ -1532,14 +1550,15 @@ int main()
 	SEARCH info[1];
 	InitSearch(info);
 	
-	//ParseFen(board, initPos/*"r1b1k2r/ppppnppp/2n2q2/2b5/3NP3/2P1B3/PP3PPP/RN1QKB1R w KQkq - 0 1"*/);
-	//PrintBoard(board);
+	ParseFen(board, initPos/*"r1b1k2r/ppppnppp/2n2q2/2b5/3NP3/2P1B3/PP3PPP/RN1QKB1R w KQkq - 0 1"*/);
+	PrintBoard(board);
 	
 	
-	//SearchPosition(board, info, 5);
+	SearchPosition(board, info, 4);
 	
 	
-	UciLoop(board, info);
+	
+	//UciLoop(board, info);
 	
 	return 0;
 }

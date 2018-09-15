@@ -112,8 +112,8 @@ implementing PV-table
 		-   Chess Programming Wiki
 			https://www.chessprogramming.org/Main_Page
 			
-		-   Oscar Toledo for providing the same class engine to play with
-		    http://www.nanochess.org/chess3.html
+		-   H.G.Muller and Marco Belli for their kind explanations of numerous
+		    points related to alpha beta search and PV storing
 			
 			
 # Feedback
