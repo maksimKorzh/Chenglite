@@ -1,12 +1,12 @@
 # Chenglite
 Minimalist UCI chess engine written by self learner from scratch
-for linux only(for now)
+
 
 # Release
-Chenglite v1.0 is relaesed! https://github.com/maksimKorzh/Chenglite/releases
+Chenglite v1.0 for linux x64 is relaesed! https://github.com/maksimKorzh/Chenglite/releases
 
 # Current development state
-implementing PV-table
+implemented PV-table
 
 # Features
 
@@ -14,11 +14,12 @@ implementing PV-table
 	- move generation via calculations
 	- copy-make make move approach
 	- material and piece placement evaluation
+	- triangular PV table
 	- iterative deepening
 	- nega max search algorithm
 	- quiescence search
 	- alpha beta pruning
-	- move ordering(MVV_LVA for captures, search history, killerMoves)
+	- move ordering(follow PV, MVV_LVA for captures, search history, killerMoves)
 	- UCI protocol with depth search only
 
 
