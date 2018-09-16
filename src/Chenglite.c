@@ -1114,7 +1114,7 @@ static int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info, i
 		// order PV move
 		for(int i = 0; i < list->moveCount; ++i)
 		{
-			if(list->moves[i].move == info->bestMove)
+			if(list->moves[i].move == info->pvTable[0][ply])
 				list->moves[i].score = 20000;
 		}
 		
@@ -1180,15 +1180,16 @@ static int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info, i
 
 
 static inline void SearchPosition(CHESSBOARD *board, SEARCH *info, int depth)
-{depth = 5;
+{
 	// iterative deepening
 	for(int currentDepth = 1; currentDepth <= depth; currentDepth++)
 	{
 		int score = NegaMaxSearch(-50000, 50000, board, info, currentDepth);
-		printf("info score cp %d depth %d nodes %ld pv", score, currentDepth, info->nodes);
 		
 		if(score == 49000)
 			break;
+			
+		printf("info score cp %d depth %d nodes %ld pv", score, currentDepth, info->nodes);
 			
 		for (int i = 0; i < info->pvLength[0]; ++i)
 		{
@@ -1199,10 +1200,10 @@ static inline void SearchPosition(CHESSBOARD *board, SEARCH *info, int depth)
 	}
 	
 	printf("bestmove ");
-	PrintMove(info->pvTable[0][0]);
+	PrintMove(info->bestMove);
 	printf("\n");
 	
-	printf("Move ordering: %.2f\n",(info->fhf/info->fh));
+	//printf("Move ordering: %.2f\n",(info->fhf/info->fh));
 	
 	
 }
@@ -1550,15 +1551,13 @@ int main()
 	SEARCH info[1];
 	InitSearch(info);
 	
-	ParseFen(board, initPos/*"r1b1k2r/ppppnppp/2n2q2/2b5/3NP3/2P1B3/PP3PPP/RN1QKB1R w KQkq - 0 1"*/);
-	PrintBoard(board);
+	//ParseFen(board, "r1b1k2r/ppppnppp/2n2q2/2b5/3NP3/2P1B3/PP3PPP/RN1QKB1R w KQkq - 0 1");
+	//PrintBoard(board);
 	
 	
-	SearchPosition(board, info, 4);
+	//SearchPosition(board, info, 6);
 	
-	
-	
-	//UciLoop(board, info);
+	UciLoop(board, info);
 	
 	return 0;
 }
