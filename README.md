@@ -6,7 +6,14 @@ Minimalist UCI chess engine written by self learner from scratch
 Chenglite v1.0 for linux x64 is relaesed! https://github.com/maksimKorzh/Chenglite/releases
 
 # Current development state
-implemented PV-table
+Chenglite's development is now stopped due to I've reached the point of satisfaction. The
+next step is to heavily reduce the code size while keeping the speed, strength and features.
+
+# Contribtions and forks
+At this moment I leave Chenglite for the community in hope it would be useful and instructive
+for beginners just like me. I'd be really happy if you fork the project for your own purposes
+or start contributing to make it become whatever you want. I'll create the "community branch"
+sa soon as first pool request will appear(if any).
 
 # Features
 
