@@ -11,7 +11,9 @@ The UCI protocol is very raw, so it might crash somewhere. Please keep it
 all in mind while testing.
 
 # Release
+
 Chenglite v1.0 for linux x64 is relaesed! https://github.com/maksimKorzh/Chenglite/releases
+
 Chenglite v1.0 for windows x64 is relaesed! https://github.com/maksimKorzh/Chenglite/releases
 
 # Current development state
