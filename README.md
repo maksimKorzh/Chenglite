@@ -12,6 +12,7 @@ all in mind while testing.
 
 # Release
 Chenglite v1.0 for linux x64 is relaesed! https://github.com/maksimKorzh/Chenglite/releases
+
 Chenglite v1.0 for windows x64 is relaesed! https://github.com/maksimKorzh/Chenglite/releases
 
 # Current development state
