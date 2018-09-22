@@ -1,6 +1,14 @@
 # Chenglite
-Simple UCI chess engine written by self learner from scratch
+Simple UCI chess engine written by self learner from scratch.
+This is an intermediate stage of my way to the true minimalist
+engine which I'm writing right now https://github.com/maksimKorzh/Minilite/
 
+Chenglite is not aimed to be a competetive engine, so please observe it
+as a beginner's attempt to write a chess program, so please don't ask me
+why it doesn't support tons of features. It aimed to beat the only one
+program - tiny chess by Oscar Toledo and it did it, nothing more for now.
+The UCI protocol is very raw, so it might crash somewhere. Please keep it
+all in mind while testing.
 
 # Release
 Chenglite v1.0 for linux x64 is relaesed! https://github.com/maksimKorzh/Chenglite/releases
