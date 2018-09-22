@@ -4,6 +4,7 @@ Simple UCI chess engine written by self learner from scratch
 
 # Release
 Chenglite v1.0 for linux x64 is relaesed! https://github.com/maksimKorzh/Chenglite/releases
+Chenglite v1.0 for windows x64 is relaesed! https://github.com/maksimKorzh/Chenglite/releases
 
 # Current development state
 Chenglite's development is now stopped due to I've reached the point of satisfaction. The
