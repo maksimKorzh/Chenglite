@@ -12,8 +12,8 @@ next step is to heavily reduce the code size while keeping the speed, strength a
 # Contribtions and forks
 At this moment I leave Chenglite for the community in hope it would be useful and instructive
 for beginners just like me. I'd be really happy if you fork the project for your own purposes
-or start contributing to make it become whatever you want. I'll create the "community branch"
-sa soon as first pool request will appear(if any).
+or start contributing to make it become whatever you want. I've create the "community branch"
+for your pool request(if any).
 
 # Features
 
