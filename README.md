@@ -1,5 +1,5 @@
 # Chenglite
-Minimalist UCI chess engine written by self learner from scratch
+Simple UCI chess engine written by self learner from scratch
 
 
 # Release
