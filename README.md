@@ -1,7 +1,5 @@
 # Chenglite
 Simple UCI chess engine written by self learner from scratch.
-This is an intermediate stage of my way to the true minimalist
-engine which I'm writing right now https://github.com/maksimKorzh/Minilite/
 
 Chenglite is not aimed to be a competetive engine, so please observe it
 as a beginner's attempt to write a chess program and please don't ask me
