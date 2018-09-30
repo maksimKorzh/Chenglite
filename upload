@@ -1,4 +1,5 @@
 rm src/Chenglite
 git add .
-git commit -m "Added files via upload"
+echo "Describe the changes you've done"
+git commit -m read -p
 git push

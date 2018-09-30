@@ -73,16 +73,6 @@ for your pool request(if any).
 	
 	- try each time to do the same thing you've done before,
 	  but in less code
-	
-	- try to get the best performance 
-	  out of a given algorithms
-	  
-	- don't add new features until being sure you've got everything out
-	  of the previously added ones
-	  
-	- don't try to write the strongest chess engine in the world,
-	  remember that Stockfish and Leela chess has been developed
-	  by numerous top level programmers
 	  
 	- don't hurry, chess engine development requires more accuracy
 	  rather than high speed coding skills
