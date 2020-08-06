@@ -31,7 +31,6 @@ for your pool request(if any).
 	- copy-make make move approach
 	- material and piece placement evaluation
 	- triangular PV table
-	- iterative deepening
 	- nega max search algorithm
 	- quiescence search
 	- alpha beta pruning
@@ -100,9 +99,7 @@ for your pool request(if any).
 	
 	Use fixed depth search to determine playing strength
 	On any other but fixed depth search mode Chenglite
-	will play with fixed depth search of 4 plies with
-	fixed 4 plies quiescence search, which takes the
-	engine quite a lot of time to make a move.
+	will play with fixed depth search of 5 plies.
 	
 	
 # Credits

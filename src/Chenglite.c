@@ -128,10 +128,10 @@ const int materialWeight[15] =
 const int Pawns[128] = 
 {
      0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-    10,  10,   0, -10, -10,   0,  10,  10,    0, 0, 0, 0, 0, 0, 0, 0,
-     5,   0,   0,   5,   5,   0,   0,   5,    0, 0, 0, 0, 0, 0, 0, 0,
-     0,   0,  10,  20,  20,  10,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-     5,   5,   5,  10,  10,   5,   5,   5,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   0, -10, -10,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     5,   5,   5,   5,   5,   5,   5,   5,    0, 0, 0, 0, 0, 0, 0, 0,
+     5,   5,   5,  20,  20,   5,   5,   5,    0, 0, 0, 0, 0, 0, 0, 0,
+    10,  10,  10,  20,  20,  10,  10,  10,    0, 0, 0, 0, 0, 0, 0, 0,
     10,  10,  10,  20,  20,  10,  10,  10,    0, 0, 0, 0, 0, 0, 0, 0,
     20,  20,  20,  30,  30,  20,  20,  20,    0, 0, 0, 0, 0, 0, 0, 0,
      0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0
@@ -175,13 +175,13 @@ const int Rooks[128] =
 
 const int Kings[128] = 
 {
-     5,   5,  20, -10, -10,   5,  30,   5,    0, 0, 0, 0, 0, 0, 0, 0,
-     0,   0,   0, -10, -10,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-     0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-     0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-     0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-     0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
-     0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     5,   5,   0, -10, -10,   0,   5,   5,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   5,   5, -10, -10,   5,   5,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   5,  10,  10,  10,  10,   5,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   5,  20,  20,  20,  20,   5,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   5,  20,  20,  20,  20,   5,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   5,  10,  10,  10,  10,   5,   0,    0, 0, 0, 0, 0, 0, 0, 0,
+     0,   0,   5,   5,   5,   5,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0,
      0,   0,   0,   0,   0,   0,   0,   0,    0, 0, 0, 0, 0, 0, 0, 0
 };
 
@@ -1097,9 +1097,6 @@ static int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info, i
 	info->pvLength[ply] = ply;
 	info->nodes++;
 
-	if(InCheck(board, side))
-		depth++;
-
 	if(!depth)
 		return QuiescenceSearch(alpha, beta, board, info);
 		
@@ -1182,7 +1179,7 @@ static int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info, i
 static inline void SearchPosition(CHESSBOARD *board, SEARCH *info, int depth)
 {
 	// iterative deepening
-	for(int currentDepth = 1; currentDepth <= depth; currentDepth++)
+	for(int currentDepth = depth; currentDepth <= depth; currentDepth++)
 	{
 		int score = NegaMaxSearch(-50000, 50000, board, info, currentDepth);
 		
