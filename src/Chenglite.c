@@ -1142,7 +1142,7 @@ static int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info, i
 			
 		if(score > alpha)
 		{
-			alpha = score;			
+			alpha = score;
 			bestMove = list->moves[moveNum].move;
 
 			if(!(GetMoveCaptureFlag(list->moves[moveNum].move)))
