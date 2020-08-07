@@ -1161,7 +1161,7 @@ static int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info, i
 	if(!legalMoves)
 	{
 		if(InCheck(board, side))
-			return -49000; // on checkmate
+			return -49000 + ply; // on checkmate
 			
 		else
 			return 0; // on stalemate
@@ -1186,14 +1186,7 @@ static inline void SearchPosition(CHESSBOARD *board, SEARCH *info, int depth)
 		if(score == 49000)
 			break;
 			
-		printf("info score cp %d depth %d nodes %ld pv", score, currentDepth, info->nodes);
-			
-		for (int i = 0; i < info->pvLength[0]; ++i)
-		{
-			PrintMove(info->pvTable[0][i]);
-		}
-	
-		printf("\n");
+		printf("info score cp %d depth %d nodes %ld\n", score, currentDepth, info->nodes);
 	}
 	
 	printf("bestmove ");
