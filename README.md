@@ -26,16 +26,24 @@ for your pool request(if any).
 
 # Features
 
-	- 0x88 board representation
-	- move generation via calculations
-	- copy-make make move approach
-	- material and piece placement evaluation
-	- triangular PV table
-	- nega max search algorithm
-	- quiescence search
-	- alpha beta pruning
-	- move ordering(follow PV, MVV_LVA for captures, search history, killerMoves)
-	- UCI protocol with depth search only
+  - 0x88 board representation
+  - move generation via calculations
+  - copy-make make move approach
+  - material and piece placement evaluation
+  - triangular PV table
+  - nega max search algorithm
+  - quiescence search
+  - alpha beta pruning
+  - move ordering(follow PV, MVV_LVA for captures, search history, killerMoves)
+  - UCI protocol with depth search only
+
+
+# Limitations
+  - no 3 fold repetition detection
+  - no 50 move rule detection
+
+# known bugs
+  - doesn't find the closest mating line
 
 
 # About
