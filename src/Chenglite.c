@@ -1108,13 +1108,6 @@ static int NegaMaxSearch(int alpha, int beta, CHESSBOARD *board, SEARCH *info, i
 		CHESSBOARD boardStored[1];
 		boardStored[0] = board[0];
 		
-		// order PV move
-		for(int i = 0; i < list->moveCount; ++i)
-		{
-			if(list->moves[i].move == info->pvTable[0][ply])
-				list->moves[i].score = 20000;
-		}
-		
 		SortMoves;
 				
 		if(!MakeMove(board, list->moves[moveNum].move, all))
